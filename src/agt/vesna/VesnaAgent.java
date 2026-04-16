@@ -1,89 +1,54 @@
 package vesna;
 
-import jason.JasonException;
-import jason.architecture.AgArch;
-import jason.asSemantics.*;
+import java.net.URI;
+
+import java.util.logging.Logger;
+import java.util.List;
+import java.util.Queue;
+import java.util.ArrayList;
+import java.util.Set;
+import java.util.Map;
+import java.util.HashSet;
+import java.util.HashMap;
+import java.util.UUID;
+import java.util.stream.Collectors;
+import java.util.Iterator;
+import java.rmi.RemoteException;
+
+import org.json.JSONObject;
+
+import jason.RevisionFailedException;
+import jason.asSemantics.Agent;
+import jason.asSemantics.Message;
+import jason.asSemantics.Intention;
+import jason.asSemantics.Option;
+import jason.asSemantics.Event;
+import jason.asSemantics.Unifier;
+import jason.asSemantics.IntendedMeans;
+import jason.runtime.Settings;
 import jason.asSyntax.*;
 import jason.asSyntax.parser.ParseException;
-import jason.runtime.RuntimeServicesFactory;
-import jason.mas2j.ClassParameters;
-import jason.bb.BeliefBase;
-import jason.bb.DefaultBeliefBase;
+import jason.architecture.AgArch;
 import jason.infra.local.LocalAgArch;
-import jason.runtime.Settings;
-import jason.NoValueException;
+import jason.infra.local.RunLocalMAS;
 
 import static jason.asSyntax.ASSyntax.*;
 
-import java.net.URI;
+public class VesnaAgent extends Agent {
 
-import org.gradle.internal.impldep.org.apache.commons.lang.StringUtils;
-import org.json.JSONObject;
-
-import java.util.HashMap;
-import java.util.List;
-import java.util.ArrayList;
-import java.util.Map;
-import java.util.Random;
-import java.util.Queue;
-import java.util.Set;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.stream.Collectors;
-
-import java.util.logging.Logger;
-
-/**
- * <p>
- * 	VesnaAgent class extends the Agent class making the agent embodied;
- * 	It connects to the body using a WebSocket connection;
- * </p>
- * <p>
- * 	It can use four parameters:
- * 	<ul>
- * 		<li> {@code address( ADDRESS )} and {@code port( PORT )} that describe the address and port of the WebSocket server;</li>
- * 		<li> {@code temper( [ LIST OF PROPENSIONS ] )} and {@code strategy( most_similar | random )} for the plan temper choice.</li>
- * 		<li> {@code strategy( most_similar | random )} for the plan temper choice.</li>
- * 	</ul>
- * <p>
- * In order to use it you should add to your .jcm:
- * <pre>
- * agent alice:alice.asl {
- * 	ag-class: 		vesna.VesnaAgent
- * 	address: 		localhost
- * 	port: 			8080
- * 	temper:			propensions([ ... ])
- * 	strategy: 		random
- * }
- * </pre>
- * @author Andrea Gatti
- */
-public class VesnaAgent extends Agent{
-
-	// GLOBAL VARIABLES
-	/** WebSocket Client that connects with the body */
 	private WsClient body;
-	/** The temper of the agent */
 	private Temper temper;
-	/** The list of methods the dev wants to debug */
-	private List<String> debugs;
-	/** The logger necessary to print on the JaCaMo log */
 	protected transient Logger logger;
+	private List<String> debugs;
 
-	/** Initialize the agent with body and temper
-	 * <p>
-	 * Override initAg method in order to:
-	 * <ul>
-	 *	<li> connect to the body if needed; </li>
-	 *	<li> initialize the temper if needed. </li>
-	 * </ul>
-	 */
+	// INIT METHODS
+	@Override
 	public void initAg() {
-
 		super.initAg();
 
-		Settings stts = getTS().getSettings();
-		logger = getTS().getLogger();
+		Settings stts = ts.getSettings();
+
+		logger = ts.getLogger();
 
 		initDebug( stts );
 		initTemper( stts );
@@ -95,12 +60,13 @@ public class VesnaAgent extends Agent{
 		debugs = new ArrayList<>();
 		if ( debugStts == null )
 			return;
-		try{
+		try {
 			Literal debugList = parseLiteral( debugStts );
 			debugs = debugList.getTerms().stream().map( Term::toString ).collect( Collectors.toList() );
-		} catch( ParseException pe ) {
+		} catch ( ParseException e ) {
 			logger.warning( "Invalid debug list: " + debugStts );
 		}
+		//logger.info( "Loaded debugs:" + debugs );
 	}
 
 	private void initTemper( Settings stts ) {
@@ -108,68 +74,61 @@ public class VesnaAgent extends Agent{
 		String strategy = stts.getUserParameter( "strategy" );
 		if ( temperStts == null )
 			return;
-		if ( strategy == null )
-			strategy = "most_similar";
 		temper = new Temper( temperStts, strategy );
 	}
 
-	/**
-	 * <p>
-		* Initialize the Body connection through WebSocket.
-		* @param	address	the address where the body is located
-		* @param	port	the port where the body is listening
-	 */
 	private void initBody( Settings stts ) {
 		String address = stts.getUserParameter( "address" );
 		int port = Integer.parseInt( stts.getUserParameter( "port" ) );
-		if ( address == null ) {
-			logger.warning( "No body configured." );
-			return;
-		}
 		try {
 			URI bodyAddress = new URI( "ws://" + address + ":" + port );
 			body = new WsClient( bodyAddress );
 			body.setMsgHandler( new WsClientMsgHandler() {
-				@Override public void handleMsg( String msg ) { bodyHandleMsg( msg ); }
-				@Override public void handleError( Exception ex ) { bodyHandleError( ex );}
-			}  );
+				@Override public void handleMsg( String msg ) { myHandleMsg( msg ); };
+				@Override public void handleError( Exception e ) { myHandleError( e ); };
+			});
 			body.connect();
-		} catch( Exception e ){
+		} catch ( Exception e ) {
 			stop( e.getMessage() );
 		}
 
+		//logger.info( "My body is at " + address + ":" + port );
 	}
 
-	/** Performs a body action in the environment
-	 * @param action The action to perform formatted into a JSON string
-	*/
-	public void perform( String action ) {
-		body.send( action );
-	}
-
-	/** Signals the mind about a perception
-	 * @param perception The perception to signal formatted as Jason Literal
-	*/
+	//BODY METHODS
 	private void sense( Literal perception ) {
 		try {
-			Message signal = new Message( "signal", getTS().getAgArch().getAgName(), getTS().getAgArch().getAgName() , perception );
-			getTS().getAgArch().sendMsg( signal );
+			Message signal = new Message( "signal", ts.getAgArch().getAgName(), ts.getAgArch().getAgName() , perception );
+			ts.getAgArch().sendMsg( signal );
 		} catch ( Exception e ) {
 			e.printStackTrace();
 		}
 	}
 
-	/** Takes all the data from an event and senses a perception
-	 * @param event The event to handle formatted as JSON object:
-		* <pre>
-		 * {
-		 *   "type": "event_type",
-		 *   "status": "event_status",
-		 *   "reason": "event_reason"
-		 * }
-		* </pre>
-	* It will <i>sense</i> a literal formatted as {@code event_type( event_status, event_reason )}.
-	*/
+	public void myHandleMsg( String msg ){
+		JSONObject log = new JSONObject( msg );
+		String sender = log.getString( "sender" );
+		String receiver = log.getString( "receiver" );
+		String type = log.getString( "type" );
+		JSONObject data = log.getJSONObject( "data" );
+		switch( type ) {
+			case "signal":
+				handleEvent( data );
+				break;
+			case "sight":
+				handleSight( data );
+				break;
+			case "rcc":
+				handleRcc( data );
+				break;
+			case "exploration":
+				handleExploration( data );
+				break;
+			default:
+				logger.warning( "Unknown message type: " + type );
+		}
+	}
+
 	private void handleEvent( JSONObject event ) {
 		String event_type = event.getString( "type" );
 		String event_status = event.getString( "status" );
@@ -178,17 +137,12 @@ public class VesnaAgent extends Agent{
 		sense(perception);
 	}
 
-	/**
-	* Takes all the data from a sight and adds a belief
-	* @param sight The sight to handle formatted as JSON object:
-		* <pre>
-		 * {
-		 *   "sight": "object",
-		 *   "id": 1234567890
-		 * }
-		* </pre>
-		* It will <i>add a belief</i> formatted as {@code sight( object, id )}.
-	*/
+	private void handleExploration( JSONObject data ) {
+		String type = data.getString( "type" );
+		String obj = data.getString( "object" );
+		sense( createLiteral( type, createLiteral( obj ) ) );
+	}
+
 	private void handleSight( JSONObject sight ) {
 		String object = sight.getString( "sight" );
 		long id = sight.getLong( "id" );
@@ -200,65 +154,51 @@ public class VesnaAgent extends Agent{
 		}
 	}
 
-	/** Handles incoming messages from the body.
-	* Available types are: signal, sight.
-	* @param msg The message received formatted as JSON string:
-	* <pre>
-	 * {
-	 *   "sender": "body",
-	 *   "receiver": "agent_name",
-	 *   "type": "signal | sight",
-	 *   "data": { ... }
-	 * }
-	 * </pre>
-	*/
-	public void bodyHandleMsg( String msg ) {
-		System.out.println( "Received message: " + msg );
-		JSONObject log = new JSONObject( msg );
-		String sender = log.getString( "sender" );
-		String receiver = log.getString( "receiver" );
-		String type = log.getString( "type" );
-		JSONObject data = log.getJSONObject( "data" );
-		switch( type ){
-			case "signal":
-				handleEvent( data );
-				break;
-			case "sight":
-				handleSight( data );
-				break;
-			default:
-				logger.warning( "Unknown message type: " + type );
+	private void handleRcc( JSONObject data ) {
+		String region = data.getString( "region" );
+		if ( data.getString( "type" ).equals( "region_exited" ) ) {
+			// logger.info( "Region exited: " + region );
+			Literal agRegion = createLiteral( "ntpp", createLiteral( ts.getAgArch().getAgName() ), createLiteral( region ) );
+			// logger.info( "Deleting region belief: " + agRegion );
+			try {
+				abolish( agRegion, new Unifier() );
+				return;
+			} catch ( Exception e ) {
+				e.printStackTrace();
+			}
+		}
+		Literal agNewRegion = createLiteral( "ntpp", createLiteral( ts.getAgArch().getAgName() ), createLiteral( region ) );
+		Literal agOldRegion = createLiteral( "ntpp", createLiteral( ts.getAgArch().getAgName() ), new VarTerm( "X") );
+		try {
+			Unifier oldUnifier = new Unifier();
+			Literal agOldRegionBel = findBel( agOldRegion, oldUnifier );
+			Literal oldRegion = (Literal) oldUnifier.get( "X" );
+			Literal po = createLiteral( "po", createLiteral( region ), oldRegion );
+			if ( agOldRegionBel != null && !believes( po, new Unifier() ) ) {
+				// logger.info( "Removing : " + agOldRegion );
+				abolish( agOldRegionBel, new Unifier() );
+			}
+			addBel( agNewRegion );
+		} catch ( Exception e ) {
+			e.printStackTrace();
 		}
 	}
 
-	/** Stops the agent: prints a message and kills the agent
-	 * @param reason The reason why the agent is stopping
-	 */
+	public void myHandleError( Exception e ){
+		stop( e.getMessage() );
+	}
+
 	private void stop( String reason ) {
-		logger.severe( reason );
+		//logger.info( reason );
 		kill_agent();
 	}
 
-	/** Handles a connection error: prints a message and kills the agent
-	 * @param ex The exception raised
-	 */
-	public void bodyHandleError( Exception ex ){
-		logger.severe( ex.getMessage() );
-		kill_agent();
-	}
-
-	/** Kills the agent
-	 * <p>
-	 * It calls the internal actions to drop all desires, intentions and events and then kill the agent;
-	 * This is necessary to avoid the agent to keep running after the kill_agent call ( that otherwise is simply enqueued ).
-	 * </p>
-	 */
 	private void kill_agent() {
-		logger.severe( "Killing agent" );
+		logger.severe( "Killing myself" );
 		if ( body != null )
 			body.close();
 		AgArch arch = ts.getAgArch();
-		while ( arch != null ) {
+		while( arch != null ) {
 			if ( arch instanceof LocalAgArch ) {
 				( (LocalAgArch) arch ).stopAg();
 				break;
@@ -267,41 +207,46 @@ public class VesnaAgent extends Agent{
 		}
 	}
 
-	/** Overrides the selectOption in order to consider Temper if needed
-	 * <p>
-	 * If there is only one option or the options are without temper it goes with the default selection;
-	 * Otherwise it calls the temper select method.
-	 * </p>
-	 * @param options The list of options to choose from
-	 * @return The selected option
-	 * @see vesna.Temper#select(List) Temper.select(List)
-	 */
+	public void perform( String action ) {
+		body.send( action );
+	}
+
+	// VESNA REASONING CYCLE
+
 	@Override
 	public Option selectOption( List<Option> options ) {
 		if ( options == null || options.isEmpty() )
 			return null;
 		if ( !hasTemper() || options.size() == 1 || !temper.hasOptionsAnnotation( options ) )
-			return options.remove( 0 ); // this is what the super method does
-		return temper.selectOption( options );
+			return options.remove( 0 );
+		Option selected = temper.selectOption( options );
+		options.remove( selected );
+		return selected;
 	}
 
-	/** Overrides the selectIntention in order to consider Temper if added
-	 * <p>
-	 * If there is only one intention or the intentions are without temper it goes with the default selection;
-	 * Otherwise it calls the temper select method.
-	 * </p>
-	 * @param intentions The queue of intentions to choose from
-	 * @return The selected intention
-	 * @see vesna.Temper#select(List) Temper.select(List)
-	 */
+	@Override
 	public Intention selectIntention( Queue<Intention> intentions ) {
+		if ( temper == null )
+			return super.selectIntention( intentions );
 		if ( intentions.size() == 1 || !temper.hasIntentionsAnnotation( intentions ) )
-			return intentions.poll(); // this is what the super method does
-		return temper.selectIntention( intentions );
+			return super.selectIntention( intentions );
+		Intention selected = temper.selectIntention( intentions );
+		intentions.remove( selected );
+		return selected;
 	}
 
 	private boolean hasTemper() {
 		return temper != null;
+	}
+
+	private String predicateIndicator2Trigger( PredicateIndicator pi ) {
+		if ( pi.getArity() == 0 )
+			return pi.getFunctor().toString();
+		String ans = pi.getFunctor() + "(";
+		for ( int i=0; i<pi.getArity(); i++ )
+			ans += "_, ";
+		ans = ans.substring( 0, ans.length() - 2 ) + ")";
+		return ans;
 	}
 
 }

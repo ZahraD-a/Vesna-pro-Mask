@@ -1,70 +1,80 @@
 // RCC Rules
-po( X, Y ) :- map_po( X, Y ).
-po( Y, X ) :- map_po( X, Y ).
+ntpp( A, B ) :- map_ntpp( A, B ). // load from map
+// A region A is contained in a region B if exists C superegion of A that is contained in B
+ntpp( A, B ) :- map_ntpp( A, C ) & ntpp( C, B ).
 
-ntpp( X, Y ) :- map_ntpp( X, Y ).
-ntppi( Y, X ) :- map_ntpp( X, Y ).
+sd( A, B ) :- map_sd( A, L ) & .member( B, L ).
+sd( A, B ) :- map_sd( A, L1 ) & .member( X, L1 ) & map_sd( X, L2 ) & .member( B, L2 ).
 
-ec( X, Y ) :- map_ec( X, Y ).
-ec( Y, X ) :- map_ec( X, Y ).
+ec( A, B ) :- map_ec( A, B ). // load from map
+ec( A, B ) :- map_ec( B, A ). // load from map
 
-// Check if two regions are subregions of the same one
-same_region( Region1, Region2 ) :- ntpp( Region1, SuperRegion ) & ntpp( Region2, SuperRegion ).
+po( A, B ) :- map_po( A, B ). // load from map
+po( A, B ) :- map_po( B, A ). // load from map
 
-+!go_to( Target )
-    :   .my_name( Me ) & same_region( Me, Target )
-    <-  .print( "I want to go to ", Target, " and we are in the same region" );
-        vesna.walk( Target, _ );
-        .wait( {+movement( completed, destination_reached ) } );
-        -at( Me, _ );
-        +at( Me, Target );
-        .print( "I arrived to ", Target ).
+my_region( A ) :- .my_name( Me ) & ntpp( Me, A ).
+same_super_region( A, B, R ) :- ntpp( A, R ) & ntpp( B, R ).
 
-+!go_to( Target )
-    :   .my_name( Me ) & ntpp( Me, MyRegion ) & ntpp( Target, TargetRegion ) & po( MyRegion, Door ) & po( Door, TargetRegion )
-    <-  .print( "I want to go to ", TargetRegion, " and I know there is ", Door, " that can lead me there");
-        vesna.walk( Door, _ );
-        .wait( { +movement( completed, destination_reached ) } );
-        .print( "I arrived to ", Door , " and I go inside" );
-        vesna.walk( TargetRegion, _ );
-        .wait( { +movement( completed, destination_reached ) } );
-        .print( "I arrived to final region ", TargetRegion );
-        -ntpp( Me, _ );
-        +ntpp( Me, TargetRegion ).
+// As convention I will use S (Start) and T (Target)
 
-+!go_to( Target )
-    :   .my_name( Me ) & ntpp( Me, MyRegion ) & ntpp( Target, TargetRegion ) & ec( MyRegion, Corridor) & ec( Corridor, TargetRegion )
-    <-  .print( "I want to go to ", TargetRegion, " and I know there is ", Corridor, " that can lead me there");
-        Path = [ Corridor, TargetRegion ];
-        !follow_path( Path );
-        !go_to( Target ).
+path( S, S, [], [S] ).
+path( S, T, [T], [S] ) :- ntpp( T, S ) & not sd( S, T ).
+path(S, T, [], [S] ) :- ntpp( S, T ) | sd( T, S ).
+path( S, T, [T], [S] ) :- ec( S, T ).
+path( S, T, [T], [S] ) :- po( S, T ).
 
-+!go_to( Target )
-    :   .my_name( Me ) & ntpp( Me, MyRegion ) & ntpp( Target, TargetRegion )
-    <-  .print( "I am really far away, I have to reason a bit logically...");
-        if ( TargetRegion == office ){
-            ?find_path( MyRegion, Target, RPath );
-        } else {
-            ?find_path( MyRegion, TargetRegion, RPath );
-        }
-        .delete( MyRegion, RPath, LPath );
-        .reverse( LPath, Path );
-        !follow_path( Path );
-        if ( not TargetRegion == office ) {
-            !go_to( Target );
-        }.
+rpath( S, T, [], Visited, Visited ) :-
+    path( S, T, [], _ ).
 
-+!follow_path( [] )
-    <-  .print( "Destination reached").
+rpath( S, T, [T], Visited, Visited ) :-
+    path( S, T, [T], _ ).
 
-+!follow_path( [ Head | Tail ] )
-    :   .my_name( Me )
-    <-  .print( "Moving to ", Head, " : ", Tail );
-        vesna.walk( Head );
-        .wait( {+movement( completed, destination_reached ) } );
-        -ntpp( Me, _ );
-        +ntpp( Me, Head );
-        !follow_path( Tail ).
+rpath( S, T, [Step | Path], VisitedSoFar, FinalVisited ) :-
+    path( S, Step, _, _ ) &
+    not .member( Step, VisitedSoFar ) &
+    not ( ntpp( S, Step ) & ntpp( T, Step ) ) &
+    rpath( Step, T, Path, [Step | VisitedSoFar], FinalVisited ).
+
+path( S, T, Path ) :- rpath( S, T, Path, [S], _ ).
+
+shortest_path( [], Best, Best ).
+shortest_path( [P|Rest], BestSoFar, Result ) :-
+    .length( P, L ) &
+    .length( BestSoFar, BestL ) &
+    L < BestL &
+    shortest_path( Rest, P, Result ).
+shortest_path( [P|Rest], BestSoFar, Result ) :-
+    shortest_path( Rest, BestSoFar, Result ).
+
+path_shortest( S, T, Shortest ) :-
+    .findall( Path, path(S, T, Path), [First|Rest] ) &
+    shortest_path( Rest, First, Shortest ).
+
++!go_to( T )
+	:	my_region( S ) & path_shortest( S, T, [] )
+	<-	.print( "Arrived." ).
+
++!go_to( T )
+	:	my_region( S ) & path_shortest( S, T, [ Step | Path ] )
+	<-	!walk( Step );
+	 	!go_to( T ).
+
++ntpp( Me, Region )
+	:	.my_name( Me ) & .desire( walk( Region ) )
+	<-	.succeed_goal( walk( Region ) ).
+
++!walk( T )
+	<-	vesna.walk( T );
+		.wait( { +movement( completed, destination_reached ) }).// | ntpp( Me, T ) ).
+
++!grab( Object, Anchor )
+	:	my_region( Object ) | ( my_region( S ) & ntpp( Object, S ) )
+	<-	vesna.grab( Object, Anchor );
+		.wait( { +object_lifted( Object, _ ) } ).
+
+-ntpp( Me, Region )
+	:	.my_name( Me ) & not ntpp( Me, AnotherRegion ) & ntpp( Region, SuperRegion )
+	<-	+ntpp( Me, SuperRegion ).
 
 // ARTIFACT INTERACTIONS
 +!use( ArtName )
