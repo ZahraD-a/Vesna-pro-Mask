@@ -2,6 +2,12 @@ defaultTasks 'run'
 
 apply plugin: 'java'
 
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
+}
+
 repositories {
     maven { url "https://raw.githubusercontent.com/jacamo-lang/mvn-repo/master" }
     maven { url "https://repo.gradle.org/gradle/libs-releases" }
@@ -24,6 +30,14 @@ task run (type: JavaExec, dependsOn: 'classes') {
     mainClass = 'jacamo.infra.JaCaMoLauncher'
     args 'vesna.jcm'
     classpath sourceSets.main.runtimeClasspath
+    executable = javaToolchains.launcherFor {
+        languageVersion = JavaLanguageVersion.of(21)
+    }.get().executablePath
+    standardOutput = System.out
+    errorOutput = System.err
+    if (project.hasProperty('alpha'))  systemProperty 'alpha',  project.getProperty('alpha')
+    if (project.hasProperty('beta'))   systemProperty 'beta',   project.getProperty('beta')
+    if (project.hasProperty('gamma'))  systemProperty 'gamma',  project.getProperty('gamma')
 }
 
 javadoc {
