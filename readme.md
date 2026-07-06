@@ -10,32 +10,13 @@ An agent has:
 - **Effective Personality**: `A_eff = clip(A_core + M_active, -1.0, +1.0)`
 
 The same agent behaves differently depending on context:
-- At **work**: wears `mask_work` → learns professional behavior (high C, low E)
-- At **home**: wears `mask_home` → learns relaxed behavior (high E, low C)
-- At **concert**: wears `mask_concert` → learns expressive behavior (high O, high E)
+- At **work**: wears `mask_work` → learns professional behavior  
+- At **home**: wears `mask_home` → learns relaxed behavior  
+- At **concert**: wears `mask_concert` → learns expressive behavior  
 
 Each context tracks its **own reward history**, so CFR learns different values per mask.
 
-## Architecture
-
-```
-┌─────────────────────────────────────────────────────┐
-│  CORE IDENTITY (A_core) — FROZEN, never changes     │
-│  [O=0.3, C=-0.2, E=0.1, A=0.5, N=-0.4]            │
-└─────────────────────────────────────────────────────┘
-                      +
-┌─────────────────────────────────────────────────────┐
-│  ACTIVE MASK (M_κ) — learned via CFR per context    │
-│  mask_work: [C=+0.04, E=-0.03, ...]                │
-│  mask_home: [E=+0.06, C=-0.03, ...]                │
-│  mask_concert: [E=+0.09, O=+0.04, ...]             │
-└─────────────────────────────────────────────────────┘
-                      =
-┌─────────────────────────────────────────────────────┐
-│  EFFECTIVE PERSONALITY (A_eff) — used for plans     │
-│  Different per context → different behavior         │
-└─────────────────────────────────────────────────────┘
-```
+ 
 
 ## Mask Selection via Prolog Rules
 
@@ -80,39 +61,8 @@ Plans are annotated with OCEAN traits:
 @formal[temper([conscientiousness(0.8), extraversion(-0.6), agreeableness(0.2), openness(-0.4), neuroticism(-0.6)]), effects([satisfaction(+0.05)[mood]])]
 +!choose_response <- +strategy(formal).
 ```
-
-## Context-Dependent Rewards
-
-Different contexts reward different behaviors:
-
-| Context | Rewarded Behavior | Bonus |
-|---------|------------------|-------|
-| work | formal, reserved | +0.3, +0.1 |
-| home | casual, enthusiastic | +0.3, +0.1 |
-| concert | enthusiastic, casual | +0.3, +0.1 |
-
-This creates different regret signals per context, causing masks to diverge.
-
-## Project Structure
-
-```
-src/agt/
-├── workplace_cfr_learning.asl     # Agent program (3 contexts, CFR loop)
-├── mask_rules.asl                 # Prolog-style wearability rules
-└── vesna/
-    ├── Mask.java                  # Mask data structure
-    ├── MaskWardrobe.java          # Mask collection + selection
-    ├── Temper.java                # Core + mask architecture
-    ├── VesnaAgent.java            # BDI agent
-    ├── BehavioralMemory.java      # Per-colleague tracking
-    ├── HelpScenarioConfig.java    # OCEAN plan annotations
-    └── via/
-        ├── set_decision_context.java   # Sets mask from beliefs
-        ├── record_outcome.java         # Context-dependent rewards
-        ├── cfr_episode.java            # End-of-episode mask update
-        └── init_behavioral_memory.java
-```
-
+ 
+ 
 ## Running
 
 ```bash
