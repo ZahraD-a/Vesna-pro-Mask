@@ -36,7 +36,7 @@ The agent queries beliefs to select the active mask before each decision.
 In `vesna.jcm`:
 
 ```jason
-agent alice:workplace_cfr_learning.asl {
+agent alice:main.asl {
     ag-class:       vesna.VesnaAgent
     temper:         temper(openness(0.3), conscientiousness(-0.2), extraversion(0.1), agreeableness(0.5), neuroticism(-0.4), stress(0.0)[mood], satisfaction(0.0)[mood], social_energy(0.0)[mood])
     strategy:       random

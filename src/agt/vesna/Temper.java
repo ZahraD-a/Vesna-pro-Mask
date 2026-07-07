@@ -50,7 +50,7 @@ public class Temper {
     private Mask activeMask;
     /** Whether mask mode is enabled. */
     private boolean useMasks = false;
-    /** Delta threshold for significant divergence. */
+    /** Global divergence threshold: report when a mask's L2 norm exceeds this. Distinct from the per-trait clip. */
     private double deltaThreshold = 0.5;
 
     // ==================== MOOD (mutable, fast-changing) ====================
@@ -104,7 +104,6 @@ public class Temper {
         }
     }
 
-    private BehavioralMemory behavioralMemory = new BehavioralMemory();
     // Per-context historical performance tracking
     // Key = "context_action" (e.g., "work_casual", "home_enthusiastic")
     private Map<String, Double> planTotalReward = new HashMap<>();
@@ -132,27 +131,28 @@ public class Temper {
     // ==================== CONSTRUCTORS ====================
 
     public Temper(String temper, String strategy) throws IllegalArgumentException {
-        this(temper, strategy, -1, true, false, 0.5, null);
+        this(temper, strategy, -1, true, false, 0.5, 0.5, null);
     }
 
     public Temper(String temper, String strategy, long seed, boolean cfrEnabled)
             throws IllegalArgumentException {
-        this(temper, strategy, seed, cfrEnabled, false, 0.5, null);
+        this(temper, strategy, seed, cfrEnabled, false, 0.5, 0.5, null);
     }
 
     /**
      * Full constructor with mask support.
      *
-     * @param temper      Jason temper literal
-     * @param strategy    "most_similar" or "random"
-     * @param seed        RNG seed (-1 for random)
-     * @param cfrEnabled  CFR learning active?
-     * @param useMasks    use mask wardrobe?
-     * @param maskClip    δ: max absolute mask trait value
-     * @param contexts    context names (e.g., ["work", "home"])
+     * @param temper         Jason temper literal
+     * @param strategy       "most_similar" or "random"
+     * @param seed           RNG seed (-1 for random)
+     * @param cfrEnabled     CFR learning active?
+     * @param useMasks       use mask wardrobe?
+     * @param maskClip       per-trait bound: max absolute value of each mask trait
+     * @param deltaThreshold global divergence threshold on the mask's L2 norm
+     * @param contexts       context names (e.g., ["work", "home"])
      */
     public Temper(String temper, String strategy, long seed, boolean cfrEnabled,
-                  boolean useMasks, double maskClip, List<String> contexts)
+                  boolean useMasks, double maskClip, double deltaThreshold, List<String> contexts)
             throws IllegalArgumentException {
 
         if (temper == null) throw new IllegalArgumentException("Temper cannot be null");
@@ -195,7 +195,7 @@ public class Temper {
                 throw new IllegalArgumentException("Mask mode requires contexts");
             this.wardrobe = new MaskWardrobe(maskClip, contexts, 0);
             this.activeMask = wardrobe.getDefaultMask();
-            this.deltaThreshold = maskClip;
+            this.deltaThreshold = deltaThreshold;
 
             // All masks start at [0,0,0,0,0]
             // Each context tracks its OWN reward history
@@ -230,12 +230,6 @@ public class Temper {
     }
 
     // ==================== MASK CONTEXT SELECTION ====================
-
-    /** Set active mask from agent beliefs. */
-    public void setActiveMaskFromBeliefs(Map<String, Boolean> beliefs) {
-        if (!useMasks) return;
-        activeMask = wardrobe.selectMask(beliefs);
-    }
 
     /** Set active mask by context name. */
     public void setActiveMask(String context) {
@@ -582,16 +576,6 @@ public class Temper {
             return result;
         } catch (Exception e) { return null; }
     }
-
-    // ==================== BEHAVIORAL MEMORY  
-
-    public void initBehavioralMemory() { HelpScenarioConfig.initBehavioralMemory(behavioralMemory); }
-    public void updateBehavioralMemory(String person, boolean helped) { behavioralMemory.update(person, helped, dice); }
-    public double getBehavioralValue(String person, String metric) { return behavioralMemory.getValue(person, metric); }
-    public BehavioralMemory.PersonMemory getBehavioralMemoryPerson(String person) {
-        return behavioralMemory == null ? null : behavioralMemory.getPersonMemory(person.toLowerCase());
-    }
-    public BehavioralMemory getBehavioralMemory() { return behavioralMemory; }
 
     // ==================== GETTERS ====================
 

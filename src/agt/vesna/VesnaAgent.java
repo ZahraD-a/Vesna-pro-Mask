@@ -43,8 +43,11 @@ public class VesnaAgent extends Agent {
         if (temperStts == null) return;
         if (strategy == null) strategy = "most_similar";
 
-        // Try to load persisted personality
-        Map<String, Object> persisted = Temper.loadPersonalityFromFile();
+        boolean useMasks = "true".equals(stts.getUserParameter("use_masks"));
+
+        // In mask mode the core is frozen, so keep the jcm temper (and seed) reproducible.
+        // Only replay a persisted personality in baseline mode.
+        Map<String, Object> persisted = useMasks ? null : Temper.loadPersonalityFromFile();
         if (persisted != null) {
             @SuppressWarnings("unchecked")
             Map<String, Double> savedP = (Map<String, Double>) persisted.get("personality");
@@ -74,11 +77,13 @@ public class VesnaAgent extends Agent {
         String cfrStr = stts.getUserParameter("cfr_learning");
         if ("false".equals(cfrStr)) cfrEnabled = false;
 
-        boolean useMasks = "true".equals(stts.getUserParameter("use_masks"));
-
         double maskClip = 0.5;
         String clipStr = stts.getUserParameter("mask_delta");
         if (clipStr != null) try { maskClip = Double.parseDouble(clipStr); } catch (NumberFormatException e) {}
+
+        double deltaThreshold = 0.5;
+        String threshStr = stts.getUserParameter("delta_threshold");
+        if (threshStr != null) try { deltaThreshold = Double.parseDouble(threshStr); } catch (NumberFormatException e) {}
 
         List<String> contexts = null;
         String ctxStr = stts.getUserParameter("mask_contexts");
@@ -87,7 +92,7 @@ public class VesnaAgent extends Agent {
             for (String c : ctxStr.split(",")) contexts.add(c.trim());
         }
 
-        temper = new Temper(temperStts, strategy, seed, cfrEnabled, useMasks, maskClip, contexts);
+        temper = new Temper(temperStts, strategy, seed, cfrEnabled, useMasks, maskClip, deltaThreshold, contexts);
     }
 
     @Override

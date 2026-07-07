@@ -41,7 +41,6 @@ public class Mask {
     // ─── Fields ──────────────────────────────────────────────────────
     private final String name;              // e.g., "mask_work"
     private final String context;           // e.g., "work" (the situation this mask is for)
-    private final String wearabilityRule;   // belief name: "at_work", "at_home", etc.
     private Map<String, Double> traits;     // OCEAN delta values (start at 0)
     private final double deltaClip;         // max absolute value per trait (δ)
     private final int creationEpisode;      // episode when mask was created
@@ -54,15 +53,13 @@ public class Mask {
      *
      * @param name            unique ID, e.g., "mask_work"
      * @param context         situation name, e.g., "work"
-     * @param wearabilityRule belief that enables this mask, e.g., "at_work"
      * @param deltaClip       δ: max absolute trait value (e.g., 0.5)
      * @param creationEpisode episode when this mask was created
      */
-    public Mask(String name, String context, String wearabilityRule,
+    public Mask(String name, String context,
                 double deltaClip, int creationEpisode) {
         this.name = name;
         this.context = context;
-        this.wearabilityRule = wearabilityRule;
         this.deltaClip = deltaClip;
         this.creationEpisode = creationEpisode;
 
@@ -132,7 +129,7 @@ public class Mask {
 
     /** Deep copy. */
     public Mask copy() {
-        Mask copy = new Mask(name, context, wearabilityRule, deltaClip, creationEpisode);
+        Mask copy = new Mask(name, context, deltaClip, creationEpisode);
         copy.traits = new HashMap<>(this.traits);
         return copy;
     }
@@ -141,7 +138,6 @@ public class Mask {
 
     public String getName()             { return name; }
     public String getContext()          { return context; }
-    public String getWearabilityRule()  { return wearabilityRule; }
     public double getDeltaClip()        { return deltaClip; }
     public int getCreationEpisode()     { return creationEpisode; }
 

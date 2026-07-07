@@ -13,10 +13,9 @@ import java.util.*;
  *
  * MASK SELECTION:
  * ──────────────
- *   Before each decision, the agent queries its beliefs:
- *     belief(at_work) → wear mask_work
- *     belief(at_home) → wear mask_home
- *     (default)       → wear mask_default (true self, no modification)
+ *   The agent picks the mask in ASL via the mask_for/2 rules
+ *   (see mask_rules.asl) and passes its name to set_decision_context.
+ *   No context match → mask_default (true self, no modification).
  *
  * EXAMPLE:
  * ────────
@@ -43,32 +42,13 @@ public class MaskWardrobe {
         this.masks = new LinkedHashMap<>();
 
         // Default mask: always wearable, no modification
-        this.defaultMask = new Mask("mask_default", "default", "true", maskClip, creationEpisode);
+        this.defaultMask = new Mask("mask_default", "default", maskClip, creationEpisode);
         masks.put("default", defaultMask);
 
         // One mask per context — all start at [0,0,0,0,0]
         for (String ctx : contexts) {
-            String maskName = "mask_" + ctx;
-            String wearability = "at_" + ctx;  // belief name that enables this mask
-            masks.put(ctx, new Mask(maskName, ctx, wearability, maskClip, creationEpisode));
+            masks.put(ctx, new Mask("mask_" + ctx, ctx, maskClip, creationEpisode));
         }
-    }
-
-    /**
-     * Select which mask to wear based on current beliefs.
-     * Checks each context mask's wearability rule against the beliefs.
-     * Falls back to default if no context matches.
-     */
-    public Mask selectMask(Map<String, Boolean> beliefs) {
-        for (Map.Entry<String, Mask> entry : masks.entrySet()) {
-            if (entry.getKey().equals("default")) continue;
-            Mask mask = entry.getValue();
-            String rule = mask.getWearabilityRule();
-            if (beliefs.getOrDefault(rule, false)) {
-                return mask;
-            }
-        }
-        return defaultMask;
     }
 
     /** Get mask by context name. Returns default if not found. */

@@ -59,13 +59,7 @@ public class record_outcome extends DefaultInternalAction {
             }
         }
 
-        // Behavioral memory shaping (existing)
-        temper.updateBehavioralMemory(person, action.contains("help"));
-        double reciprocity = temper.getBehavioralValue(person, "reciprocity");
-        double relationship = temper.getBehavioralValue(person, "relationship");
-        enhancedReward += (relationship - 0.5) * 0.2;
-
-        // Record for CFR
+        // Record for CFR (reward depends only on the context, not the individual)
         temper.recordHelpOutcome(action, enhancedReward, person);
 
         return true;
