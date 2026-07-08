@@ -1,0 +1,7 @@
+player,context,formal,casual,enthusiastic,reserved
+alice,work,0.0000,0.9999,0.0001,0.0000
+alice,home,0.0000,0.9999,0.0000,0.0000
+alice,concert,0.0000,0.0000,1.0000,0.0000
+bob,work,1.0000,0.0000,0.0000,0.0000
+bob,home,0.9999,0.0000,0.0000,0.0000
+bob,concert,0.9999,0.0000,0.0000,0.0000

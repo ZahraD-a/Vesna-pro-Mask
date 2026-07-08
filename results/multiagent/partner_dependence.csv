@@ -1,0 +1,7 @@
+context,partner,formal,casual,enthusiastic,reserved
+work,bob,0.0000,0.9999,0.0001,0.0000
+work,cara,0.0000,0.0002,0.9998,0.0000
+home,bob,0.0000,0.9999,0.0000,0.0000
+home,cara,0.0000,0.9999,0.0000,0.0000
+concert,bob,0.0000,0.0000,1.0000,0.0000
+concert,cara,0.0000,0.0000,1.0000,0.0000
