@@ -1,9 +1,12 @@
 { include("mask_rules.asl") }
 
 // Alice meets someone across several contexts; CFR learns one mask per context.
-contexts([work, home, concert]).
+// work/home/concert each have a dedicated mask (see mask_rules.asl + .jcm mask_contexts).
+// 'party' has NO dedicated mask: it falls back to mask_default (the true self, starts
+// at [0,0,0,0,0]), which itself learns and records that 'party' routed to it.
+contexts([work, home, concert, party]).
 interactions_per_context(10).
-max_episodes(50).
+max_episodes(150).
 
 +!start
     <-  +episode(0);
@@ -21,7 +24,8 @@ max_episodes(50).
 
 +!episode
     :   episode(N) & max_episodes(M) & N >= M
-    <-  .wait(2000);
+    <-  .print("Simulation complete: ", M, " episodes run.");
+        .wait(600000);
         .stopMAS.
 
 // Wear the mask bound to the context (mask_for/2), then interact K times.
@@ -40,9 +44,10 @@ max_episodes(50).
         !run_interactions(K - 1, Mask).
 
 // One exchange: wear the mask, pick a response via temper, record the outcome.
-+!social_interaction(Mask)
++!social_interaction(Mask) 
+    :   context(Ctx)
     <-  -strategy(_);
-        vesna.via.set_decision_context(social, Mask);
+        vesna.via.set_decision_context(social, Mask, Ctx);
         !choose_response;
         !execute_response.
 

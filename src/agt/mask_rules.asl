@@ -1,9 +1,6 @@
-// =============================================================
 // MASK WEARABILITY RULES
-// =============================================================
 // Context -> Mask mapping (Prolog-style)
 // First matching rule wins.
-// =============================================================
 
 // Rule 1: work context -> professional behavior
 mask_for( Ctx, MaskName ) :- Ctx == work & MaskName = mask_work.

@@ -7,45 +7,41 @@ import java.util.Map;
  * MASK = behavioral overlay on top of the agent's core identity.
  *
  * HOW IT WORKS:
- * ─────────────
  *   Core identity (A_core) = WHO YOU ARE (set at design time, never changes)
  *   Mask (M)               = HOW YOU ADAPT in a specific context (learned via CFR)
  *
  *   Effective personality = A_eff = clip(A_core + M, -1.0, +1.0)
  *
  * EXAMPLE:
- * ────────
  *   A_core = [O=0.3, C=-0.2, E=0.1, A=0.5, N=-0.4]  (your true self)
  *   M_work = [O=0.1, C=0.3,  E=0.0, A=0.2, N=-0.3]  (learned adaptation at work)
  *   A_eff  = [O=0.4, C=0.1,  E=0.1, A=0.7, N=-0.7]  (how you behave at work)
  *
  * DESIGN-TIME DECISION:
- * ─────────────────────
  *   Each mask is created at design time for a specific context.
  *   All masks START at [0,0,0,0,0] (no modification to core).
  *   Through CFR learning, masks EVOLVE to adapt the agent per context.
  *
  * DELTA (δ):
- * ──────────
  *   Each mask trait is clipped to [-δ, +δ] to prevent extreme drift.
  *   When ||M|| (L2 norm) exceeds a threshold, the mask has diverged
  *   significantly from the agent's core — this is reported for analysis.
  */
 public class Mask {
 
-    // ─── OCEAN trait names ───────────────────────────────────────────
+    // OCEAN trait names
     public static final String[] OCEAN = {
         "openness", "conscientiousness", "extraversion", "agreeableness", "neuroticism"
     };
 
-    // ─── Fields ──────────────────────────────────────────────────────
+    // Fields
     private final String name;              // e.g., "mask_work"
     private final String context;           // e.g., "work" (the situation this mask is for)
     private Map<String, Double> traits;     // OCEAN delta values (start at 0)
     private final double deltaClip;         // max absolute value per trait (δ)
     private final int creationEpisode;      // episode when mask was created
 
-    // ─── Constructor ─────────────────────────────────────────────────
+    // Constructor
 
     /**
      * Create a new mask for a specific context.
@@ -70,7 +66,7 @@ public class Mask {
         }
     }
 
-    // ─── Trait Manipulation ──────────────────────────────────────────
+    // Trait Manipulation
 
     /**
      * Set a trait to a specific value (for initial configuration).
@@ -88,6 +84,11 @@ public class Mask {
         double current = traits.getOrDefault(trait, 0.0);
         double updated = Math.max(-deltaClip, Math.min(deltaClip, current + delta));
         traits.put(trait, updated);
+    }
+
+    /** Set a trait to an absolute value, clipped to [-deltaClip, +deltaClip]. */
+    public void setTraitClipped(String trait, double value) {
+        traits.put(trait, Math.max(-deltaClip, Math.min(deltaClip, value)));
     }
 
     /** Get current delta value for a trait. */
@@ -134,7 +135,7 @@ public class Mask {
         return copy;
     }
 
-    // ─── Getters ─────────────────────────────────────────────────────
+    // Getters
 
     public String getName()             { return name; }
     public String getContext()          { return context; }

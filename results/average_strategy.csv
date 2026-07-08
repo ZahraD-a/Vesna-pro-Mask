@@ -1,0 +1,5 @@
+context,formal,casual,enthusiastic,reserved
+default,0.0002,0.0005,0.9992,0.0002
+work,0.9995,0.0002,0.0002,0.0002
+home,0.0002,0.9987,0.0009,0.0002
+concert,0.0002,0.0004,0.9993,0.0002

@@ -6,19 +6,16 @@ import java.util.*;
  * Mask Wardrobe: the collection of all masks the agent owns.
  *
  * DESIGN-TIME DECISION:
- * ─────────────────────
  *   The developer decides how many masks exist based on the scenario.
  *   Each mask is for ONE context (e.g., work, home, concert).
  *   All masks START at [0,0,0,0,0] — no modification to core identity.
  *
  * MASK SELECTION:
- * ──────────────
  *   The agent picks the mask in ASL via the mask_for/2 rules
  *   (see mask_rules.asl) and passes its name to set_decision_context.
  *   No context match → mask_default (true self, no modification).
  *
  * EXAMPLE:
- * ────────
  *   contexts = ["work", "home", "concert"]
  *   → creates: mask_default, mask_work, mask_home, mask_concert
  *   → all start at [0,0,0,0,0]

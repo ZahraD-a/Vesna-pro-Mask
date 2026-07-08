@@ -45,8 +45,47 @@ public class HelpScenarioConfig {
         return new String[]{"formal", "casual", "enthusiastic", "reserved"};
     }
 
-    public static void initBehavioralMemory(BehavioralMemory memory) {
-        memory.addPerson("social", "Social", 0.5, 0.5);
-        System.out.println("[MEMORY] Social interaction partner initialized");
+    // ---- Reward model (single source of truth for the environment AND for CFR) ----
+
+    /** Base reward of a response, independent of context. */
+    public static double baseReward(String action) {
+        switch (action) {
+            case "formal":       return 0.3;
+            case "casual":       return 0.5;
+            case "enthusiastic": return 0.6;
+            case "reserved":     return 0.2;
+            default:             return 0.0;
+        }
+    }
+
+    /** Context-dependent bonus/penalty added to the base reward. */
+    public static double contextShaping(String context, String action) {
+        switch (context) {
+            case "work":     // professional: formal rewarded, expressive penalised
+                if (action.equals("formal"))       return  0.3;
+                if (action.equals("reserved"))     return  0.1;
+                if (action.equals("enthusiastic")) return -0.2;
+                if (action.equals("casual"))       return -0.1;
+                return 0.0;
+            case "home":     // relaxed: casual rewarded, stiff penalised
+                if (action.equals("casual"))       return  0.3;
+                if (action.equals("enthusiastic")) return  0.1;
+                if (action.equals("formal"))       return -0.2;
+                if (action.equals("reserved"))     return -0.1;
+                return 0.0;
+            case "concert":  // expressive: enthusiastic rewarded, formal penalised
+                if (action.equals("enthusiastic")) return  0.3;
+                if (action.equals("casual"))       return  0.1;
+                if (action.equals("formal"))       return -0.3;
+                if (action.equals("reserved"))     return -0.2;
+                return 0.0;
+            default:         // no dedicated shaping (e.g. the default mask / 'party')
+                return 0.0;
+        }
+    }
+
+    /** Total utility of a response in a context: base reward + context shaping. */
+    public static double utility(String context, String action) {
+        return baseReward(action) + contextShaping(context, action);
     }
 }

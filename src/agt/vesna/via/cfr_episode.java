@@ -28,8 +28,8 @@ public class cfr_episode extends DefaultInternalAction {
         if (temper == null) return true;
 
         episodeCounter++;
-        System.out.println("\n========== EPISODE " + episodeCounter + " COMPLETE ==========");
-        System.out.println("[CFR] Total reward: " + String.format("%.2f", temper.getTotalEpisodeReward()));
+        System.out.println("\n[EPISODE " + episodeCounter + "] complete | total reward: "
+            + String.format("%.2f", temper.getTotalEpisodeReward()));
 
         // Trigger learning (mask update or personality update)
         temper.startNewEpisode();
@@ -42,7 +42,7 @@ public class cfr_episode extends DefaultInternalAction {
             }
         }
 
-        System.out.println("=======================================\n");
+        System.out.println();
         return true;
     }
 }

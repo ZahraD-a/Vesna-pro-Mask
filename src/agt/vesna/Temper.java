@@ -2,6 +2,9 @@ package vesna;
 
 import java.util.Map;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.Set;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Queue;
 import java.util.ArrayList;
@@ -33,42 +36,47 @@ import org.json.JSONObject;
  */
 public class Temper {
 
-    // ==================== DECISION STRATEGY ====================
+    // DECISION STRATEGY
 
     private enum DecisionStrategy { MOST_SIMILAR, RANDOM }
 
-    // ==================== CORE IDENTITY (FROZEN) ====================
+    // CORE IDENTITY (FROZEN)
 
     /** Core personality: WHO YOU TRULY ARE. Set at design time. NEVER modified by CFR. */
     private Map<String, Double> corePersonality;
 
-    // ==================== MASK WARDROBE ====================
+    // MASK WARDROBE
 
     /** The wardrobe: collection of all masks defined at design time. */
     private MaskWardrobe wardrobe;
     /** The currently active mask (selected by beliefs). */
     private Mask activeMask;
+
+    /** Requested context/belief -> name of the mask actually worn (routing record). */
+    private final Map<String, String> contextRouting = new LinkedHashMap<>();
+    /** Contexts with no dedicated mask that fell back to the shared default mask. */
+    private final Set<String> defaultRoutedContexts = new LinkedHashSet<>();
     /** Whether mask mode is enabled. */
     private boolean useMasks = false;
     /** Global divergence threshold: report when a mask's L2 norm exceeds this. Distinct from the per-trait clip. */
     private double deltaThreshold = 0.5;
 
-    // ==================== MOOD (mutable, fast-changing) ====================
+    // MOOD (mutable, fast-changing)
 
     private Map<String, Double> mood;
 
-    // ==================== STRATEGY & RNG ====================
+    // STRATEGY & RNG
 
     private DecisionStrategy strategy;
     private Random dice = new Random();
 
-    // ==================== CFR FIELDS ====================
+    // CFR FIELDS
 
     private boolean cfrEnabled = true;
-    private double cfrLearningRate = 0.005;
+    private double cfrLearningRate = 0.02;
     private double softmaxTemperature = 2.0;
-    private static final double TEMPERATURE_DECAY = 0.995;
-    private static final double MIN_TEMPERATURE = 0.5;
+    private static final double TEMPERATURE_DECAY = 0.98;
+    private static final double MIN_TEMPERATURE = 0.2;
 
     public static class InformationSet {
         public final String name;
@@ -87,6 +95,15 @@ public class Temper {
     private List<TraceEntry> currentEpisodeDecisions = new ArrayList<>();
     private Map<String, String> lastActionPerPerson = new HashMap<>();
     private double totalEpisodeReward = 0.0;
+    private int episodeIndex = 0;
+
+    // ---- Vanilla CFR: regret matching, one information set per context ----
+    /** The action set available at every decision node. */
+    private static final String[] CFR_ACTIONS = {"formal", "casual", "enthusiastic", "reserved"};
+    /** context (info set) -> cumulative counterfactual regret per action. */
+    private final Map<String, double[]> regretSum = new HashMap<>();
+    /** context (info set) -> cumulative strategy per action (for the average strategy). */
+    private final Map<String, double[]> strategySum = new HashMap<>();
 
     public static class TraceEntry {
         public final String trigger;
@@ -128,7 +145,43 @@ public class Temper {
         return c.matches("p__\\d+") ? "p2" : c;
     }
 
-    // ==================== CONSTRUCTORS ====================
+    // ---- CFR helpers ----
+    private double[] regretSumFor(String ctx)   { return regretSum.computeIfAbsent(ctx, k -> new double[CFR_ACTIONS.length]); }
+    private double[] strategySumFor(String ctx) { return strategySum.computeIfAbsent(ctx, k -> new double[CFR_ACTIONS.length]); }
+    private int actionIndex(String a) {
+        for (int i = 0; i < CFR_ACTIONS.length; i++) if (CFR_ACTIONS[i].equals(a)) return i;
+        return -1;
+    }
+    private boolean isCfrActionSet(List<String> labels) {
+        if (labels.size() != CFR_ACTIONS.length) return false;
+        for (String l : labels) if (actionIndex(l) < 0) return false;
+        return true;
+    }
+    private List<Double> toList(double[] a) { List<Double> l = new ArrayList<>(); for (double v : a) l.add(v); return l; }
+
+    /** Regret matching: current strategy = normalize(max(0, regretSum)); uniform if all <= 0. */
+    private double[] regretMatch(String ctx) {
+        double[] r = regretSumFor(ctx);
+        double[] s = new double[r.length];
+        double sum = 0.0;
+        for (int i = 0; i < r.length; i++) { s[i] = Math.max(0.0, r[i]); sum += s[i]; }
+        if (sum > 0) for (int i = 0; i < s.length; i++) s[i] /= sum;
+        else         for (int i = 0; i < s.length; i++) s[i] = 1.0 / s.length;
+        return s;
+    }
+
+    /** Average strategy = normalize(strategySum); uniform if unseen. This is the converged output. */
+    private double[] averageStrategy(String ctx) {
+        double[] ss = strategySumFor(ctx);
+        double[] s = new double[ss.length];
+        double sum = 0.0;
+        for (double v : ss) sum += v;
+        if (sum > 0) for (int i = 0; i < ss.length; i++) s[i] = ss[i] / sum;
+        else         for (int i = 0; i < ss.length; i++) s[i] = 1.0 / ss.length;
+        return s;
+    }
+
+    // CONSTRUCTORS
 
     public Temper(String temper, String strategy) throws IllegalArgumentException {
         this(temper, strategy, -1, true, false, 0.5, 0.5, null);
@@ -203,10 +256,19 @@ public class Temper {
             //   - work context: formal responses get higher reward
             //   - home context: casual responses get higher reward
             //   - concert context: enthusiastic responses get higher reward
-            System.out.println("[MASK] Wardrobe: " + contexts);
-            System.out.println("[MASK] Core: " + formatMap(corePersonality));
-            System.out.println("[MASK] All masks start at [0,0,0,0,0]");
-            System.out.println("[MASK] Each context has its own reward history");
+            System.out.println("[MASK] Wardrobe created for contexts " + contexts
+                + " (plus a default mask). Core personality: " + formatMap(corePersonality));
+            System.out.println("[MASK] Initial masks (all start at zero, learned afterwards by CFR):");
+            for (Mask m : wardrobe.getAllMasks()) System.out.println("  " + m);
+            try {   // start each training run with a fresh log; episode 0 = all masks at zero
+                Files.createDirectories(Path.of("results"));
+                StringBuilder hdr = new StringBuilder("episode,total_reward");
+                for (Mask m : wardrobe.getAllMasks()) hdr.append(",").append(m.getName());
+                hdr.append("\n0,0.0000");
+                for (Mask m : wardrobe.getAllMasks()) hdr.append(",").append(String.format("%.6f", m.norm()));
+                hdr.append("\n");
+                Files.writeString(Path.of("results", "mask_norms.csv"), hdr.toString());
+            } catch (IOException e) { System.err.println("[LOG] " + e.getMessage()); }
         }
     }
 
@@ -229,18 +291,57 @@ public class Temper {
         return eff;
     }
 
-    // ==================== MASK CONTEXT SELECTION ====================
+    // MASK CONTEXT SELECTION
 
-    /** Set active mask by context name. */
+    /** Set active mask by context name (records routing under the same name). */
     public void setActiveMask(String context) {
+        setActiveMask(context, context);
+    }
+
+    /**
+     * Set the active mask for a requested context, recording which mask the
+     * context was routed to.
+     *
+     * When a context has no dedicated mask, the wardrobe returns the shared
+     * default mask (the "true self", which also starts at [0,0,0,0,0] and is
+     * itself learnable). We remember that fallback so we can later report
+     * which contexts/beliefs ended up wearing — and training — the default mask.
+     *
+     * @param context          wardrobe key (e.g. "work"; "default" for the catch-all)
+     * @param requestedContext the raw context/belief that led here (e.g. "party")
+     */
+    public void setActiveMask(String context, String requestedContext) {
         if (!useMasks) return;
         activeMask = wardrobe.getMask(context);
+        contextRouting.put(requestedContext, activeMask.getName());
+        if (activeMask == wardrobe.getDefaultMask() && !requestedContext.equals("default")) {
+            defaultRoutedContexts.add(requestedContext);
+        }
+    }
+
+    /**
+     * Report which context/belief each interaction was routed to, and which
+     * contexts fell back to the shared default mask because no dedicated mask
+     * was defined for them.
+     */
+    public void printContextRouting() {
+        if (!useMasks || contextRouting.isEmpty()) return;
+        System.out.println("[MASK] Context -> mask routing:");
+        for (Map.Entry<String, String> e : contextRouting.entrySet()) {
+            boolean fallback = defaultRoutedContexts.contains(e.getKey());
+            System.out.println("  context '" + e.getKey() + "' -> " + e.getValue()
+                + (fallback ? "  (no dedicated mask -> learned default)" : ""));
+        }
+        if (!defaultRoutedContexts.isEmpty()) {
+            System.out.println("[MASK] Undefined contexts trained onto the default mask: "
+                + defaultRoutedContexts);
+        }
     }
 
     public Mask getActiveMask() { return activeMask; }
     public MaskWardrobe getWardrobe() { return wardrobe; }
 
-    // ==================== WEIGHT COMPUTATION ====================
+    // WEIGHT COMPUTATION
 
     public double computeWeight(Pred label) throws NoValueException {
         double choiceWeight = 0;
@@ -264,7 +365,7 @@ public class Temper {
         return choiceWeight;
     }
 
-    // ==================== PLAN SELECTION ====================
+    // PLAN SELECTION
 
     public boolean hasOptionsAnnotation(List<Option> options) {
         return hasAnnotation(options.stream().map(OptionWrapper::new).collect(Collectors.toList()));
@@ -303,6 +404,29 @@ public class Temper {
     }
 
     public <T extends TemperSelectable> T select(List<T> choices) throws NoValueException {
+        // VANILLA CFR: when choosing among the response actions, PLAY the regret-matched
+        // strategy for the current context (info set) and sample an action from it.
+        if (useMasks && cfrEnabled) {
+            List<String> labels = choices.stream()
+                .map(c -> normalizePlanLabel(c.getLabel().getFunctor())).collect(Collectors.toList());
+            if (isCfrActionSet(labels)) {
+                String ctx = activeMask.getContext();
+                double[] sigma = regretMatch(ctx);
+                // Accumulate the strategy (reach prob = 1 here: single decision node, single player).
+                double[] ss = strategySumFor(ctx);
+                for (int i = 0; i < CFR_ACTIONS.length; i++) ss[i] += sigma[i];
+                // Sample from sigma, aligned to the order Jason presents the options in.
+                double[] p = new double[labels.size()];
+                double psum = 0.0;
+                for (int i = 0; i < labels.size(); i++) { p[i] = sigma[actionIndex(labels.get(i))]; psum += p[i]; }
+                int chosenIdx = labels.size() - 1;
+                double roll = dice.nextDouble() * (psum > 0 ? psum : 1.0), acc = 0.0;
+                for (int i = 0; i < p.length; i++) { acc += p[i]; if (roll < acc) { chosenIdx = i; break; } }
+                recordDecision(choices, chosenIdx, toList(p));
+                return choices.get(chosenIdx);
+            }
+        }
+
         List<Double> weights = new ArrayList<>();
         for (T choice : choices) weights.add(computeWeight(choice.getLabel()));
 
@@ -316,7 +440,7 @@ public class Temper {
         return chosen;
     }
 
-    // ==================== CFR: DECISION RECORDING ====================
+    // CFR: DECISION RECORDING
 
     private String currentStage = "root";
     public void setCurrentStage(String stage) { this.currentStage = stage; }
@@ -336,142 +460,107 @@ public class Temper {
             + " selected=" + chosenAction + " mask=" + (useMasks ? activeMask.getName() : "none"));
     }
 
-    // ==================== CFR: RECORD OUTCOME ====================
+    // CFR: RECORD OUTCOME
 
     public void recordHelpOutcome(String action, double reward, String person) {
         lastActionPerPerson.put(person.toLowerCase(), action);
-        InformationSet infoset = getInformationSet("help_" + person);
 
-        // Track reward per context (mask) — each context has its own history
+        // Each context is its own info set and estimates its own action utilities.
         String context = useMasks ? activeMask.getContext() : "default";
         updateHistoricalPerformance(context, action, reward);
 
-        // Compute regret using per-context historical averages
-        String[] allActions = HelpScenarioConfig.getActionsForPerson(person);
-        double expectedChosen = getHistoricalAverage(context, action);
-        for (String alt : allActions) {
-            double expectedAlt = getHistoricalAverage(context, alt);
-            double regret = alt.equals(action) ? 0.0 : expectedAlt - expectedChosen;
-            double current = infoset.cumulativeRegret.getOrDefault(alt, 0.0);
-            infoset.cumulativeRegret.put(alt, current + regret);
+        if (cfrEnabled && useMasks) {
+            // Vanilla-CFR regret update at this single-decision info set (FULL feedback:
+            // every action's utility is known from the reward model, as in a tree traversal):
+            //   u(a) = utility of action a in this context = base + context shaping
+            //   v    = sum_a sigma(a) * u(a)          (value of the current strategy)
+            //   regretSum(a) += u(a) - v              (counterfactual regret, accumulated)
+            double[] sigma = regretMatch(context);
+            double[] u = new double[CFR_ACTIONS.length];
+            double v = 0.0;
+            for (int i = 0; i < CFR_ACTIONS.length; i++) {
+                u[i] = HelpScenarioConfig.utility(context, CFR_ACTIONS[i]);
+                v += sigma[i] * u[i];
+            }
+            double[] r = regretSumFor(context);
+            for (int i = 0; i < CFR_ACTIONS.length; i++) r[i] += (u[i] - v);
+        } else if (cfrEnabled) {
+            // Baseline (no masks): legacy per-action regret bookkeeping.
+            InformationSet infoset = getInformationSet("help_" + person);
+            String[] allActions = HelpScenarioConfig.getActionsForPerson(person);
+            double expectedChosen = getHistoricalAverage(context, action);
+            for (String alt : allActions) {
+                double expectedAlt = getHistoricalAverage(context, alt);
+                double regret = alt.equals(action) ? 0.0 : expectedAlt - expectedChosen;
+                infoset.cumulativeRegret.put(alt, infoset.cumulativeRegret.getOrDefault(alt, 0.0) + regret);
+            }
         }
         totalEpisodeReward += reward;
     }
 
-    // ==================== CFR: MASK UPDATE (KEY METHOD) ====================
+    // MASK READOUT (projection of the CFR average strategy into personality space)
 
     /**
-     * Update MASKS from CFR regret.
-     * Routes gradients to per-context masks (not the core!).
+     * Refresh each mask as a READOUT of its context's regret-matched AVERAGE strategy:
+     *
+     *   mask(ctx) = sum_a ( avgStrategy(ctx, a) - 1/|A| ) * OCEAN(a)
+     *
+     * i.e. how far the learned policy pulls the persona away from the uniform baseline.
+     * The learning itself (regret matching) happens in select() and recordHelpOutcome();
+     * this only projects the converged strategy into personality space for interpretation.
      */
     public void updateMasksFromCFR() {
-        if (currentEpisodeDecisions.isEmpty()) return;
-        if (!cfrEnabled) return;
-
-        System.out.println("\n========== CFR: MASK UPDATE ==========");
-
-        // Collect which masks were used in this episode
-        Map<String, List<TraceEntry>> decisionsByMask = new HashMap<>();
-        for (TraceEntry entry : currentEpisodeDecisions) {
-            String mask = entry.maskName;
-            if (!decisionsByMask.containsKey(mask)) {
-                decisionsByMask.put(mask, new ArrayList<>());
+        if (!cfrEnabled || !useMasks) return;
+        System.out.println("\n[MASK] Masks = readout of the regret-matched average strategy:");
+        double uniform = 1.0 / CFR_ACTIONS.length;
+        for (Mask mask : wardrobe.getAllMasks()) {
+            String ctx = mask.getContext();
+            double[] avg = averageStrategy(ctx);
+            Map<String, Double> target = new HashMap<>();
+            for (String trait : corePersonality.keySet()) target.put(trait, 0.0);
+            for (int i = 0; i < CFR_ACTIONS.length; i++) {
+                Map<String, Double> at = HelpScenarioConfig.getActionTraits(CFR_ACTIONS[i]);
+                if (at == null) continue;
+                double w = avg[i] - uniform;
+                for (Map.Entry<String, Double> e : at.entrySet())
+                    target.merge(e.getKey(), w * e.getValue(), Double::sum);
             }
-            decisionsByMask.get(mask).add(entry);
+            for (Map.Entry<String, Double> e : target.entrySet())
+                mask.setTraitClipped(e.getKey(), e.getValue());
+            System.out.println("  " + mask.getName() + " ctx=" + ctx
+                + " avgStrategy=" + fmtStrategy(avg)
+                + " ||M||=" + String.format("%.4f", mask.norm()));
         }
+        saveAverageStrategy();
+        printContextRouting();
+        System.out.println();
+    }
 
-        System.out.println("[MASK] Masks used this episode: " + decisionsByMask.keySet());
+    private String fmtStrategy(double[] s) {
+        StringBuilder sb = new StringBuilder("{");
+        for (int i = 0; i < CFR_ACTIONS.length; i++) {
+            if (i > 0) sb.append(", ");
+            sb.append(CFR_ACTIONS[i]).append("=").append(String.format("%.2f", s[i]));
+        }
+        return sb.append("}").toString();
+    }
 
-        // Update each mask separately based on decisions made while wearing it
-        for (Map.Entry<String, List<TraceEntry>> maskEntry : decisionsByMask.entrySet()) {
-            String maskName = maskEntry.getKey();
-            List<TraceEntry> decisions = maskEntry.getValue();
-
-            // Find the mask object
-            Mask mask = null;
-            if (maskName.equals("mask_default")) {
-                mask = wardrobe.getDefaultMask();
-            } else {
-                String ctx = maskName.replace("mask_", "");
-                mask = wardrobe.getMask(ctx);
-            }
-            if (mask == null) continue;
-
-            // Compute this mask's effective personality: A_core + M_this_mask
-            Map<String, Double> maskEff = new HashMap<>();
-            for (String trait : corePersonality.keySet()) {
-                double core = corePersonality.getOrDefault(trait, 0.0);
-                double maskDelta = mask.getTrait(trait);
-                maskEff.put(trait, Math.max(-1.0, Math.min(1.0, core + maskDelta)));
-            }
-
-            // Compute gradients from decisions made while wearing this mask
-            Map<String, Double> traitGradients = new HashMap<>();
-            for (String trait : corePersonality.keySet()) traitGradients.put(trait, 0.0);
-            int decisionCount = 0;
-
-            for (TraceEntry decision : decisions) {
-                // Get the action that was selected
-                String chosenAction = decision.options.get(decision.selectedIndex);
-                Map<String, Double> chosenTraits = HelpScenarioConfig.getActionTraits(chosenAction);
-                if (chosenTraits == null) continue;
-
-                // Compute per-context historical averages
+    /** Save the converged average strategy per context — the actual CFR output. */
+    private void saveAverageStrategy() {
+        try {
+            StringBuilder sb = new StringBuilder("context");
+            for (String a : CFR_ACTIONS) sb.append(",").append(a);
+            sb.append("\n");
+            for (Mask mask : wardrobe.getAllMasks()) {
                 String ctx = mask.getContext();
-                double chosenAvg = getHistoricalAverage(ctx, chosenAction);
-
-                // For each unchosen action, compute per-context regret
-                for (int i = 0; i < decision.options.size(); i++) {
-                    if (i == decision.selectedIndex) continue;
-                    String altAction = decision.options.get(i);
-                    double altAvg = getHistoricalAverage(ctx, altAction);
-                    double regret = altAvg - chosenAvg;
-                    if (regret <= 0) continue;
-
-                    Map<String, Double> altTraits = HelpScenarioConfig.getActionTraits(altAction);
-                    if (altTraits == null) continue;
-
-                    // Gradient: regret * (A_alt - A_eff(this mask))
-                    for (Map.Entry<String, Double> te : altTraits.entrySet()) {
-                        String traitName = te.getKey();
-                        double grad = regret * (te.getValue() - maskEff.getOrDefault(traitName, 0.0));
-                        traitGradients.put(traitName, traitGradients.getOrDefault(traitName, 0.0) + grad);
-                    }
-                }
-                decisionCount++;
+                double[] avg = averageStrategy(ctx);
+                sb.append(ctx);
+                for (double v : avg) sb.append(",").append(String.format("%.4f", v));
+                sb.append("\n");
             }
-
-            // Apply gradients to this specific mask
-            if (decisionCount > 0) {
-                // Normalize gradients by number of decisions
-                for (String trait : traitGradients.keySet()) {
-                    traitGradients.put(trait, traitGradients.get(trait) / decisionCount);
-                }
-                System.out.println("[MASK] Updating " + maskName + " (" + decisionCount + " decisions):");
-                for (String trait : traitGradients.keySet()) {
-                    double gradient = traitGradients.get(trait);
-                    if (Math.abs(gradient) < 0.001) continue;
-                    double oldVal = mask.getTrait(trait);
-                    mask.updateTrait(trait, cfrLearningRate * gradient);
-                    System.out.println("  " + trait + ": " + String.format("%+.4f", oldVal)
-                        + " -> " + String.format("%+.4f", mask.getTrait(trait)));
-                }
-            }
-
-            double norm = mask.norm();
-            System.out.println("[MASK] ||" + maskName + "||=" + String.format("%.4f", norm)
-                + " (threshold=" + deltaThreshold + ")");
-            if (norm >= deltaThreshold) {
-                System.out.println("[MASK] *** DELTA EXCEEDED on " + maskName + "! ***");
-            }
-        }
-
-        // Print final wardrobe state
-        System.out.println("[MASK] Wardrobe after update:");
-        for (Mask m : wardrobe.getAllMasks()) {
-            System.out.println("  " + m);
-        }
-        System.out.println("=====================================\n");
+            Files.createDirectories(Path.of("results"));
+            Files.writeString(Path.of("results", "average_strategy.csv"), sb.toString());
+        } catch (IOException e) { System.err.println("[LOG] " + e.getMessage()); }
     }
 
     /** Baseline update (no masks) — merges ALL gradients into ONE vector. */
@@ -510,10 +599,9 @@ public class Temper {
         }
     }
 
-    // ==================== EPISODE MANAGEMENT ====================
+    // EPISODE MANAGEMENT
 
     public void startNewEpisode() {
-        System.out.println("\n========== EPISODE COMPLETE ==========");
         if (useMasks) {
             System.out.println("[MASK] BEFORE: " + activeMask);
             updateMasksFromCFR();
@@ -522,6 +610,7 @@ public class Temper {
             updatePersonalityFromCFR();
         }
         savePersonality();
+        logTrainingRow(totalEpisodeReward);
         currentEpisodeDecisions.clear();
         lastActionPerPerson.clear();
         totalEpisodeReward = 0.0;
@@ -530,9 +619,29 @@ public class Temper {
         softmaxTemperature = Math.max(MIN_TEMPERATURE, softmaxTemperature * TEMPERATURE_DECAY);
     }
 
-    // ==================== PERSISTENCE ====================
+    // PERSISTENCE
 
     private static final String PERSONALITY_FILE = "personality.json";
+
+    /**
+     * Append one training row per episode to results/mask_norms.csv:
+     * episode index, total reward that episode, and the L2 norm of each mask.
+     * The norms are the learning curves — they should grow from 0 as CFR adapts.
+     */
+    private void logTrainingRow(double episodeReward) {
+        if (!useMasks || wardrobe == null) return;
+        episodeIndex++;
+        try {
+            Path csv = Path.of("results", "mask_norms.csv");
+            Files.createDirectories(csv.getParent());
+            StringBuilder sb = new StringBuilder();
+            sb.append(episodeIndex).append(",").append(String.format("%.4f", episodeReward));
+            for (Mask m : wardrobe.getAllMasks()) sb.append(",").append(String.format("%.6f", m.norm()));
+            sb.append("\n");
+            Files.writeString(csv, sb.toString(),
+                java.nio.file.StandardOpenOption.CREATE, java.nio.file.StandardOpenOption.APPEND);
+        } catch (IOException e) { System.err.println("[LOG] " + e.getMessage()); }
+    }
 
     private void savePersonality() {
         try {
@@ -577,7 +686,7 @@ public class Temper {
         } catch (Exception e) { return null; }
     }
 
-    // ==================== GETTERS ====================
+    // GETTERS
 
     public Map<String, Double> getPersonality() { return effectivePersonality(); }
     public Map<String, Double> getCorePersonality() { return new HashMap<>(corePersonality); }
@@ -597,7 +706,7 @@ public class Temper {
         return r;
     }
 
-    // ==================== HELPERS 
+    // HELPERS 
 
     private String formatMap(Map<String, Double> map) {
         StringBuilder sb = new StringBuilder("{");
@@ -648,7 +757,6 @@ public class Temper {
             double delta = (double) ((NumberTerm) effect.getTerm(0)).solve();
             double nv = Math.max(-1.0, Math.min(1.0, old + delta));
             mood.put(name, nv);
-            System.out.println("[TEMPER] Mood: " + name + " " + String.format("%.2f", old) + " -> " + String.format("%.2f", nv));
         }
     }
 
@@ -657,7 +765,6 @@ public class Temper {
         StringBuilder sb = new StringBuilder("[TEMPER] Core: ");
         corePersonality.forEach((k, v) -> sb.append(k + "=" + String.format("%.2f", v) + " "));
         if (useMasks) { sb.append("| Mask: ").append(activeMask.getName()).append(" "); activeMask.getTraits().forEach((k, v) -> sb.append(k + "=" + String.format("%.2f", v) + " ")); }
-        sb.append("| Mood: "); mood.forEach((k, v) -> sb.append(k + "=" + String.format("%.2f", v) + " "));
         return sb.toString();
     }
 }
