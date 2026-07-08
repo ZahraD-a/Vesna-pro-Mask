@@ -1,6 +1,6 @@
 # Vesna-Pro-Mask: Context-Dependent Personality Learning via CFR
 
-**Vesna-Pro-Mask** extends [Vesna-Pro](https://github.com/VEsNA-ToolKit/vesna-pro) with a **Mask Wardrobe** architecture: agents maintain a frozen core identity and wear context-specific behavioral masks that evolve independently via Counterfactual Regret Minimization (CFR). inspired by novelty of writer  pirandello [pirandello](https://en.wikipedia.org/wiki/One,_No_One_and_One_Hundred_Thousand). 
+**Vesna-Pro-Mask** extends [Vesna-Pro](https://github.com/VEsNA-ToolKit/vesna-pro) with a **Mask Wardrobe** architecture: agents maintain a frozen core identity and wear context-specific behavioral masks that evolve independently via Counterfactual Regret Minimization (CFR). inspired by novelty of italian writer  pirandello [pirandello](https://en.wikipedia.org/wiki/One,_No_One_and_One_Hundred_Thousand). 
 
 ## Core Idea
 
