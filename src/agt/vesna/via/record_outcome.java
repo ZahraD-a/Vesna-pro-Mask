@@ -4,6 +4,7 @@ import jason.asSemantics.*;
 import jason.asSyntax.*;
 import vesna.Temper;
 import vesna.VesnaAgent;
+import vesna.HelpScenarioConfig;
 
 /**
  * Records outcome for CFR regret matching.
@@ -24,43 +25,18 @@ public class record_outcome extends DefaultInternalAction {
         Temper temper = agent.getTemper();
 
         String event = args[0].toString().toLowerCase().trim();
-        double baseReward = ((NumberTerm) args[1]).solve();
         String action = args[2].toString();
         String person = args[3].toString().toLowerCase();
 
-        // Start with base reward
-        double enhancedReward = baseReward;
+        // Observed reward comes from the shared reward model (HelpScenarioConfig.utility),
+        // so the environment and CFR can never disagree about payoffs. The 'neutral' branch
+        // (the ~30% environment-noise outcome in the .asl) yields zero this time.
+        String context = (temper.isUseMasks() && temper.getActiveMask() != null)
+            ? temper.getActiveMask().getContext() : "default";
+        double observedReward = event.equals("neutral")
+            ? 0.0 : HelpScenarioConfig.utility(context, action.toLowerCase());
 
-        // Context-dependent reward shaping
-        // Different contexts reward different behaviors differently
-        if (temper.isUseMasks() && temper.getActiveMask() != null) {
-            String context = temper.getActiveMask().getContext();
-
-            if (context.equals("work")) {
-                // Work: formal/professional behavior is rewarded more
-                if (action.contains("formal")) enhancedReward += 0.3;
-                if (action.contains("reserved")) enhancedReward += 0.1;
-                if (action.contains("enthusiastic")) enhancedReward -= 0.2;
-                if (action.contains("casual")) enhancedReward -= 0.1;
-            }
-            else if (context.equals("home")) {
-                // Home: casual/relaxed behavior is rewarded more
-                if (action.contains("casual")) enhancedReward += 0.3;
-                if (action.contains("enthusiastic")) enhancedReward += 0.1;
-                if (action.contains("formal")) enhancedReward -= 0.2;
-                if (action.contains("reserved")) enhancedReward -= 0.1;
-            }
-            else if (context.equals("concert")) {
-                // Concert: enthusiastic/expressive behavior is rewarded more
-                if (action.contains("enthusiastic")) enhancedReward += 0.3;
-                if (action.contains("casual")) enhancedReward += 0.1;
-                if (action.contains("formal")) enhancedReward -= 0.3;
-                if (action.contains("reserved")) enhancedReward -= 0.2;
-            }
-        }
-
-        // Record for CFR (reward depends only on the context, not the individual)
-        temper.recordHelpOutcome(action, enhancedReward, person);
+        temper.recordHelpOutcome(action, observedReward, person);
 
         return true;
     }

@@ -13,36 +13,36 @@
   },
   "masks": {
     "mask_concert": {
-      "conscientiousness": -0.045,
-      "openness": 0.04,
-      "neuroticism": 0.008,
-      "extraversion": 0.087,
-      "agreeableness": -0.007,
-      "norm": 0.1066
+      "conscientiousness": -0.5,
+      "openness": 0.5,
+      "neuroticism": 0.1,
+      "extraversion": 0.5,
+      "agreeableness": 0.2,
+      "norm": 0.8944
     },
     "mask_home": {
-      "conscientiousness": -0.027,
-      "openness": 0.013,
-      "neuroticism": 0.011,
-      "extraversion": 0.056,
-      "agreeableness": 0,
-      "norm": 0.0649
+      "conscientiousness": -0.45,
+      "openness": 0.2,
+      "neuroticism": 0.3,
+      "extraversion": 0.5,
+      "agreeableness": 0.4,
+      "norm": 0.8614
     },
     "mask_default": {
-      "conscientiousness": 0,
-      "openness": 0,
-      "neuroticism": 0,
-      "extraversion": 0,
-      "agreeableness": 0,
-      "norm": 0
+      "conscientiousness": -0.5,
+      "openness": 0.5,
+      "neuroticism": 0.1,
+      "extraversion": 0.5,
+      "agreeableness": 0.2,
+      "norm": 0.8944
     },
     "mask_work": {
-      "conscientiousness": 0.042,
-      "openness": -0.031,
-      "neuroticism": -0.008,
-      "extraversion": -0.029,
-      "agreeableness": -0.014,
-      "norm": 0.0621
+      "conscientiousness": 0.5,
+      "openness": -0.4,
+      "neuroticism": -0.1,
+      "extraversion": -0.5,
+      "agreeableness": 0,
+      "norm": 0.8184
     }
   }
 }

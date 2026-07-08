@@ -31,9 +31,16 @@ public class set_decision_context extends DefaultInternalAction {
         // ASL passes "mask_concert" but wardrobe key is "concert"
         String maskName = args[1].toString().toLowerCase();
         String contextKey = maskName.replace("mask_", "");
+
+        // Arg 2 (optional): the raw context/belief that led here, so the wardrobe
+        // can record which contexts fall back to (and train) the default mask.
+        String requestedContext = args.length >= 3
+            ? args[2].toString().toLowerCase() : contextKey;
+
         if (temper.isUseMasks()) {
-            temper.setActiveMask(contextKey);
-            System.out.println("[MASK] Wearing " + maskName + " for interaction with " + person);
+            temper.setActiveMask(contextKey, requestedContext);
+            System.out.println("[MASK] Wearing " + maskName + " for interaction with " + person
+                + " (context=" + requestedContext + ")");
         }
 
         return true;
