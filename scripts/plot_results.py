@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Plots for the four-agent mask experiment (results/mas/ -> results/mas/*.png).
+Plots for the four-agent mask experiment (results/latest/ -> results/latest/*.png).
 
     python scripts/plot_mas.py
 
@@ -30,7 +30,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import pandas as pd
 
-RESULTS = Path("results/mas")
+RESULTS = Path("results/latest")
 # Outputs use the OCEAN initials -- five full trait names side by side is unreadable.
 TRAITS = ["O", "C", "E", "A", "N"]
 TRAIT_NAMES = {"O": "O  openness", "C": "C  conscientiousness", "E": "E  extraversion",

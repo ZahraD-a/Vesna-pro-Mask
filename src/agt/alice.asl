@@ -66,8 +66,8 @@ max_episodes(120).
         vesna.via.final_report;
         // The MAS console window is destroyed when .stopMAS brings the JVM down, so
         // hold it open long enough to read the report. It is also on disk, in
-        // results/mas/report.txt, if this runs out before you are finished.
-        .print("report above is also in results/mas/report.txt -- closing in 90s");
+        // results/latest/report.txt, if this runs out before you are finished.
+        .print("report above is also in results/latest/report.txt -- closing in 90s");
         .wait(90000);
         .stopMAS.
 
