@@ -1,16 +1,16 @@
-// Receiver -- Bob, Carol and Dave. One file, three agents, each instantiated in
-// vesna.jcm with its own personality and its own beliefs about what belongs where.
+// Shared behaviour for Bob, Carol and Dave. One file, three agents: each is set up
+// in vesna.jcm with its own personality and has its own opinions in its own file.
 //
-// A receiver does not learn and wears no mask. It has a personality and a handful
-// of ways to react, and its personality picks among them, so its answer is neither
-// scripted nor drawn from a table inside Alice.
+// A receiver does not learn and wears no mask. It has a personality and a few ways
+// to react, and its personality decides between them. So its reply is not scripted,
+// and it does not come from any table inside Alice.
 //
-// improper/2 is this agent's own opinion, invisible to Alice. She finds out the way
-// anyone does -- Andrea: "you make some jokes while you are taking a coffee, it is
-// your second day at work, and you see that nobody is laughing."
+// improper/2 is this agent's private opinion about what does not belong where.
+// Alice cannot read it. She only finds out by trying something and getting a cold
+// reply -- like telling a joke at work and noticing nobody laughs.
 //
-// Per-agent beliefs supplied by bob.asl / carol.asl / dave.asl: needs_help/1,
-// likes_style/1, improper/2.
+// Each of bob.asl, carol.asl and dave.asl adds its own needs_help/1, likes_style/1
+// and improper/2.
 
 verbose.
 
@@ -18,13 +18,15 @@ verbose.
     <-  .abolish(hush);
         .abolish(verbose).
 
-// The shared part of the norm: what is out of place for everyone. Sharing the
-// REJECTED set gives each circumstance one coherent direction, so the
-// counterfactual gap says "a more conscientious mask would have worked here"
-// rather than "everything is equally bad" -- which is what the mask needs to move.
-// Partner variation lives in the accepted set instead (likes_style, per agent), so
-// the mask learns the circumstance-level niche and transfers across partners while
-// the feedback stays partner-dependent.
+// What is out of place here for everyone, shared by all three receivers.
+//
+// They agree on what is WRONG but differ on what they LIKE (likes_style, set per
+// agent). That split is deliberate. If they disagreed about what is wrong too, the
+// feedback would point in no particular direction and the mask would have nothing
+// to aim at. Because they agree, each circumstance has one clear direction to
+// learn, and because they like different things the replies still vary by partner.
+// The mask ends up learning the circumstance, not the person, which is why it
+// works on a partner it has never met.
 
 // work: professional. Impulsive rescue and clowning and vanishing are out.
 improper(drop_everything, work).
@@ -54,13 +56,18 @@ tolerate(Style, Circ)  :- not improper(Style, Circ).
     <-  .abolish(offer(T, Style, Circ, I));
         !react(Ag, I, Style, Circ).
 
-// How it lands. Appreciated and appropriate -> {accepted, tolerated} apply; not its
-// taste but allowed -> {tolerated, rejected}; out of place here -> {rejected} only,
-// whatever this agent's personality. Which of the applicable outcomes fires is
-// decided by its own temper, so feedback is partner-dependent and stochastic.
+// How the offer lands. Three cases:
 //
-// The vocabulary is deliberately general: an environment sensor would emit
-// goal_achieved / delayed / failed into the same reward machine.
+//   liked and allowed here  -> accepted or tolerated
+//   allowed but not liked   -> tolerated or rejected
+//   out of place here       -> rejected, whatever this agent's personality
+//
+// Where two replies are possible, the agent's own personality picks between them,
+// so the answer varies by partner and is not always the same.
+//
+// The words accepted / tolerated / rejected are kept general on purpose. In a
+// non-social setting a sensor could report goal_achieved / delayed / failed
+// instead, and the reward machine would not need to change.
 
 @react_accept[temper([o(0.65), c(0.50), e(0.75), a(0.90), n(0.35)])]
 +!react(Ag, I, Style, Circ)
@@ -80,6 +87,7 @@ tolerate(Style, Circ)  :- not improper(Style, Circ).
     <-  .send(Ag, tell, outcome(I, rejected));
         !say(Style, " in ", Circ, "  ->  rejected").
 
-// No temper() on either plan, so this cannot disturb which reaction is selected.
+// Neither plan has a temper() annotation, so printing cannot affect which reaction
+// is chosen.
 +!say(A, B, C, D) : verbose <- .print(A, B, C, D).
 +!say(_, _, _, _).

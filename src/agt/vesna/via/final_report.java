@@ -8,9 +8,9 @@ import vesna.VesnaAgent;
 /**
  * vesna.via.final_report
  *
- * Prints and saves the end-of-run report: the learned masks first (the object of study), then the
- * evidence that they changed behaviour, then the transfer/partner-independence result. Written to
- * results/mas/report.txt as well, since the MAS console window dies with the JVM at .stopMAS.
+ * Prints and saves the end-of-run summary: what each mask learned, evidence that it changed how
+ * the agent behaved, and whether it carries over between partners. Also written to
+ * results/latest/report.txt, because the console window closes as soon as the run stops.
  */
 public class final_report extends DefaultInternalAction {
 

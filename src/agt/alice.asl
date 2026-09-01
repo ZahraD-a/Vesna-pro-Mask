@@ -1,17 +1,17 @@
-// Alice, the agent that learns its masks.
+// Alice is the only agent here that learns.
 //
-// One agent among four. Bob, Carol and Dave are separate agents in separate
-// files; Alice reaches them only by message and sees only what they send back.
-// Nothing here simulates them -- Angelo: "Alice cannot choose for Bob."
+// Bob, Carol and Dave are separate agents with their own files. Alice can only
+// send them messages and read what they reply. She never decides for them, and
+// nothing in this file pretends to be them.
 //
-// Time is symbolic: she believes episode(N) and advances it herself. What an
-// episode means for learning lives in MaskLearner, off the reasoning cycle.
+// She counts episodes herself with the belief episode(N). What an episode means
+// for learning happens in MaskLearner, outside her reasoning.
 
 { include("mask_rules.asl") }
 
-// Alice's own state. Everything else she reasons over -- circumstances,
-// rounds_per_partner, max_episodes, dialogue_episodes, verbose -- is experiment
-// configuration and lives in vesna.jcm.
+// Alice's own state. The settings she reads -- circumstances, rounds_per_partner,
+// max_episodes, dialogue_episodes, verbose -- are experiment settings and live in
+// vesna.jcm, not here.
 episode(0).
 next_id(0).
 
@@ -49,15 +49,16 @@ next_id(0).
         !meet_everyone;
         !visit_all(Rest).
 
-// getMasks then selectMask: wearable/1 returns a set, .nth(0) takes the most
-// specific. Both halves stay symbolic and overridable here; wear_mask only hands
-// the chosen name to the learner.
+// Two steps: ask which masks fit this circumstance, then pick one. wearable/1 can
+// return several, and .nth(0) takes the most specific. Both steps stay here in the
+// agent so they can be changed without touching Java; wear_mask just passes the
+// chosen name to the learner.
 +!wear_mask(C)
     <-  .findall(M, wearable(M), Wearable);
         .nth(0, Wearable, Chosen);
         vesna.via.wear_mask(Chosen).
 
-// Partners are discovered at run time, so adding a fifth agent to the .jcm
+// Partners are looked up while running, so adding a fifth agent to vesna.jcm
 // needs no change here.
 +!meet_everyone
     :   rounds_per_partner(K)
@@ -87,17 +88,22 @@ next_id(0).
     <-  !manage(Ag, T).
 +!on_reply(_, _).                   // nothing needed, or no answer
 
-// Nine ways to achieve !manage(Partner, Task). All have an empty context, so all
-// nine are applicable at every decision -- Andrea: "you should always have plans
-// that are applicable at the same time, because otherwise it will be so
-// deterministic that you will not learn anything."
+// Nine different ways to do the same thing: help a partner. None of them has a
+// context condition, so all nine are always possible. That is on purpose. If only
+// one plan fitted at a time the choice would be forced and there would be nothing
+// to learn.
 //
-// temper() is the persona the plan projects, OCEAN in [-1,1] -- the range the
-// original Temper already accepts for annotations. The sign matters: -1 is the
-// REVERSE of a trait, not a little of it, so ignore(a(-0.90)) is active coldness.
-// Against Alice's warm core (a(0.75)) that scores -1.39, and a non-positive weight
-// gets no probability -- she cannot play it until a mask lowers her agreeableness.
-// These numbers must match PlanCatalog.java; PlanCatalog.validate() checks that.
+// temper() describes the kind of person each plan acts like, using the five OCEAN
+// traits from -1 to +1. The sign matters: -1 means the opposite of the trait, not
+// a small amount of it. So ignore has a(-0.90), meaning actively cold.
+//
+// A plan is scored by multiplying the agent's traits by the plan's traits and
+// adding up. Alice is warm (a(0.75)), so ignore scores -1.39 -- a negative score,
+// and negative-scoring plans are never chosen. She simply cannot ignore anyone
+// until a mask makes her less agreeable. That is the mask doing its job.
+//
+// These numbers must stay equal to the ones in PlanCatalog.java. If they ever
+// differ, PlanCatalog.validate() stops the run.
 
 @drop_everything[temper([o(0.20), c(-0.50), e(0.40), a(0.90), n(0.10)]),
                  effects([social_energy(-0.10)[mood], satisfaction(0.10)[mood]])]
@@ -137,12 +143,13 @@ next_id(0).
 // ---------------------------------------------------------------------
 //
 //  The identifier makes each exchange unique. Without it a second
-// The identifier makes each exchange unique: without it a repeated reaction would
-// be a belief Alice already holds, no event would fire, and the exchange would
-// silently vanish.
+// The id makes every exchange unique. Without it, the same reply twice would
+// already be a belief Alice holds, so nothing would happen and the exchange would
+// disappear without trace.
 
-// The circumstance travels with the offer: the partner reacts to the whole
-// situation, not the act alone. Alice never sees why -- only the reply.
+// The circumstance is sent along with the offer, because the partner reacts to
+// the whole situation and not just the act. Alice is never told why they reacted
+// that way; she only gets the reply.
 
 +!offer(Ag, T, Style)
     :   next_id(I) & circumstance(C)
@@ -153,15 +160,16 @@ next_id(0).
         .send(Ag, tell, offer(T, Style, C, I));
         .wait(20).
 
-// The only place external feedback enters, produced by another agent's own
-// personality choosing among its own reaction plans.
+// The only point where feedback from outside arrives. The reply came from another
+// agent picking its own reaction with its own personality.
 +outcome(I, Result)[source(Ag)]
     <-  .abolish(outcome(I, _));
         !say("   <- ", Ag, " : ", Result);
         vesna.via.record_outcome(Ag, Result).
 
-// Dialogue trace. Two plans per hook: verbose, then a catch-all that does
-// nothing. Neither carries temper(), so this cannot disturb plan selection.
+// Printing. Two plans each: one that prints while verbose is believed, and one
+// that does nothing. Neither has a temper() annotation, so printing can never
+// affect which plan gets chosen.
 
 +!say(A, B, C) : verbose <- .print(A, B, C).
 +!say(_, _, _).
@@ -172,8 +180,8 @@ next_id(0).
 +!announce(E) : verbose <- .print("======== episode ", E, " ========").
 +!announce(_).
 
-// Alice has no authority over the others' belief bases; she sends a message and
-// their own plan decides what to do with it.
+// Alice cannot change what the others believe. She sends a message and each of
+// them decides for itself what to do with it.
 +!maybe_hush(E)
     :   dialogue_episodes(D) & E >= D & verbose
     <-  .print("---- dialogue trace off after ", D, " episodes; ",

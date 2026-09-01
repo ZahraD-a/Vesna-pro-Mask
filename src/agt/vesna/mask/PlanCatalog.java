@@ -7,18 +7,18 @@ import jason.pl.PlanLibrary;
 import jason.NoValueException;
 
 /**
- * The nine socially different ways of achieving one goal, and the persona each projects.
+ * The nine ways of helping, and the kind of person each one acts like.
  *
- * This is a Java-side mirror of the temper() annotations in alice.asl. The duplication is
- * deliberate and unavoidable: the counterfactual-regret update needs the trait vector of the plans
- * that were NOT executed, and Jason does not hand those to Java at update time. validate() is
- * called at startup to fail loudly if the two copies ever drift.
+ * These numbers are a second copy of the temper() annotations in alice.asl. The copy is needed:
+ * after each choice the learner has to ask "what would the other eight plans have been worth?",
+ * and Java cannot read another plan's annotation at that moment. validate() compares the two
+ * copies when the run starts and stops it if they disagree.
  *
- * There is no fit(circumstance, style) table here. What is appropriate where is something the agent
- * discovers from how the receivers react -- Andrea: "you make some jokes while you are taking a
- * coffee, it is your second day at work, and you see that nobody is laughing." A table inside the
- * reward function would short-circuit exactly the thing under study. Social norms live in the
- * receivers' belief bases (improper/2), opaque to Alice.
+ * Note what is NOT here: any table saying which style suits which circumstance. That is the thing
+ * the agent is supposed to learn. It finds out by trying something and seeing how people react --
+ * tell a joke at work, notice nobody laughs. Writing the answer into the reward would defeat the
+ * whole experiment. What counts as out of place is stored in the receivers' own beliefs, where
+ * Alice cannot read it.
  */
 public final class PlanCatalog {
 
@@ -60,20 +60,17 @@ public final class PlanCatalog {
 
     static {
         //     name                O     C     E     A     N    effort
-        // A style's projected persona, OCEAN in [-1,1] -- the range the ORIGINAL Temper already
-        // accepts for a plan annotation (it validates [-1,1] in computeWeight). Following Andrea's
-        // Definition 3.1, -1 is the REVERSE of the trait, not a small amount of it: ignore(a=-0.90)
-        // projects active coldness, polite_decline(e=-0.40) projects withdrawal.
+        // Each style described by the five OCEAN traits, from -1 to +1. This is the range the
+        // original Temper already accepts for a plan annotation.
         //
-        // The agent's personality stays in [0,1] exactly as upstream. A positive trait times a
-        // negative annotation still gives a NEGATIVE compatibility score, so Alice's warm core
-        // (a=0.75) scores ignore at -1.39 and polite_decline at -0.39: she cannot play them at all
-        // until a mask lowers her agreeableness. That is what the [0,1] annotations could never
-        // express, since every score they produced was positive.
+        // -1 means the opposite of a trait, not a little of it. So ignore has a = -0.90, which is
+        // active coldness, and polite_decline has e = -0.40, which is pulling away.
         //
-        // Values are the previous [0,1] numbers under the order-preserving remap v -> 2v-1, so the
-        // relative shape of the style space is unchanged; only its origin moved to the neutral
-        // point, which is what lets compatibility carry a sign.
+        // The agent's own personality still runs 0 to 1, unchanged. A positive trait times a
+        // negative number is still negative, so Alice, who is warm (a = 0.75), scores ignore at
+        // -1.39 and polite_decline at -0.39. Plans with a negative score are never picked, so she
+        // cannot do either until a mask makes her less agreeable. With all-positive numbers every
+        // score came out positive and no plan was ever truly off-limits.
         style("drop_everything",  0.20, -0.50,  0.40,  0.90,  0.10, 1.00);
         style("help_after_task", -0.10,  0.80,  0.00,  0.40, -0.20, 0.50);
         style("pair_up",          0.60,  0.20,  0.80,  0.70, -0.30, 0.70);
@@ -87,11 +84,7 @@ public final class PlanCatalog {
 
     private PlanCatalog() {}
 
-    /**
-     * Fail at startup if alice.asl's temper() annotations have drifted from the table above. The
-     * two copies exist because the CFR update needs the traits of plans that were not executed;
-     * this is what keeps them honest.
-     */
+    /** Stop the run if alice.asl's temper() numbers no longer match the table above. */
     public static void validate(PlanLibrary pl) {
         for (Plan p : pl.getPlans()) {
             Pred label = p.getLabel();
@@ -134,8 +127,8 @@ public final class PlanCatalog {
     }
 
     /**
-     * How much of my own time and energy this style costs me, whatever anyone thinks of it.
-     * This is Angelo's bathroom: same goal reached, but one path is longer than the other, so
+     * How much time and energy this style costs, regardless of how it is received. Two routes can
+     * reach the same goal with different effort, and the cheaper one is worth preferring, so
      * afterwards you regret not having taken the shorter one.
      */
     public static double effort(String style) {

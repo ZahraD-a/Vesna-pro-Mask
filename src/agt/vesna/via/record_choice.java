@@ -8,10 +8,9 @@ import vesna.VesnaAgent;
 /**
  * vesna.via.record_choice(Partner, Style)
  *
- * The agent has chosen a plan style for a partner, before the outcome is known. The plan itself
- * was selected by the ORIGINAL Temper (weighing the nine styles against the masked personality);
- * this records which style was chosen and for whom, and the MaskLearner snapshots the mixed
- * strategy the mask induced, so the counterfactual regret can later be scored against it.
+ * Notes which style the agent chose, and for whom, before any reply has arrived. The choice itself
+ * was made by the original Temper. The learner also saves how likely each style was at that moment,
+ * so that when the reply comes it can work out whether the choice was better or worse than average.
  */
 public class record_choice extends DefaultInternalAction {
 

@@ -3,35 +3,39 @@ package vesna.mask;
 import java.util.*;
 
 /**
- * Turns "which plan did I run, with whom, where, and how did it land" into a scalar reward, and
- * estimates what the plans I did not run would have been worth.
+ * Turns "what did I do, to whom, where, and how did it go" into a single number, and also estimates
+ * what the plans that were not chosen would have been worth.
  *
- *     R = W_OUTCOME * outcome(source) - W_AUTH * inauthenticity(style, core) - W_COST * effort(style)
+ *     reward = W_OUTCOME * how it was received
+ *            - W_AUTH    * how unlike me the plan was
+ *            - W_COST    * how much effort it took
  *
- * Only the outcome requires having acted, so for the plans not taken it is replaced by the running
- * mean of how that source has reacted to that style in that circumstance (zero until there is
- * evidence). Authenticity and cost are properties of the agent and the plan and are exact for the
- * whole applicable set at any time.
+ * Only the first part needs the plan to have actually been run. For the plans not chosen it is
+ * replaced by the average of how that partner has reacted to that style here before, starting at
+ * zero when there is nothing to go on. The other two parts depend only on the agent and the plan,
+ * so they can be worked out for every plan at any time.
  *
- * Authenticity is measured against the CORE personality, never the masked one: against the mask the
- * term would be self-confirming. Against the core it creates the tension the mask has to resolve.
+ * "How unlike me" is measured against the real personality, never the masked one. Measured against
+ * the mask, a mask would always look right to itself. Measured against the real personality it
+ * pulls against wanting approval, and the learned mask is the compromise between the two.
  */
 public final class RewardMachine {
 
     /**
- * The outcome is the only term that differs between circumstances, so if it does not dominate every
- * mask converges on the same authenticity-and-cost optimum and the circumstance stops mattering.
- * Measured at W_OUTCOME = 1.0 all three masks came out within 0.05 of each other.
+ * How it was received is the only part that changes from one circumstance to another. The other two
+ * are the same everywhere, so unless this part is the strongest every mask drifts to the same
+ * answer and the circumstance stops making any difference. At W_OUTCOME = 1.0 all three masks came
+ * out within 0.05 of each other.
  */
     public static final double W_OUTCOME = 2.50;
     public static final double W_AUTH    = 0.60;
     public static final double W_COST    = 0.30;
 
     /**
- * A symbolic outcome mapped to a scalar. The labels are deliberately generic: a partner may reply
- * accepted / tolerated / rejected, an environment sensor goal_achieved / delayed / failed. Only the
- * source changes between instantiations, never the machine. Unknown labels score neutral rather
- * than throwing, so a receiver can introduce one without a recompile.
+ * Puts a number on each possible reply. The words are kept general on purpose: a person might reply
+ * accepted / tolerated / rejected, while a sensor might report goal_achieved / delayed / failed.
+ * Only where the reply comes from changes, never this class. An unrecognised word scores zero
+ * instead of causing an error, so a new one can be added without recompiling.
  */
     private static final Map<String, Double> OUTCOME = Map.ofEntries(
         Map.entry("accepted",      1.0),   // social: the help was welcomed
@@ -51,9 +55,10 @@ public final class RewardMachine {
     }
 
     /**
- * Mean absolute distance between the persona a style projects and who the agent really is,
- * normalised to [0,1]. The core is in [0,1] but a plan's persona is in [-1,1], so a per-trait
- * distance runs to 2; dividing by the span keeps W_AUTH's calibration.
+ * How far a style is from who the agent really is: the average gap across the five traits, scaled
+ * so that 0 means exactly myself and 1 means my complete opposite. The personality runs 0 to 1 and
+ * a plan runs -1 to 1, so one trait can be up to 2 apart; dividing by 2 keeps W_AUTH meaning what
+ * it did before.
  */
     private final Map<String, double[]> history = new HashMap<>();  // [sum, count]
 

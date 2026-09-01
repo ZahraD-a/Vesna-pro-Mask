@@ -1,19 +1,22 @@
-// Four agents. Every one runs the original vesna.VesnaAgent; what separates Alice
-// from the others is configuration alone -- use_masks is on for her, so a
-// MaskLearner is attached. There is no "primary" agent in the code.
+// Four agents. They all run the same agent class; the only thing that makes Alice
+// different is this file, where masks are switched on for her and nobody else.
 //
-// Personalities are in [0,1] and plan annotations in [-1,1], the two ranges the
-// original Temper validates. Nothing about the temper mechanism is widened. What
-// is new is only that the signed half of the annotation range is used at all: the
-// upstream demo runs most_similar with all-positive annotations, so the
-// dot-product path was never exercised there.
+// A personality is written with five traits from 0 to 1. Plan annotations, in the
+// .asl files, run from -1 to 1. Both are the ranges the original code already
+// accepts, and neither has been widened. The only new thing is that the negative
+// half of the plan range is actually used here.
+//
+// Settings for the experiment -- how many episodes, how many rounds, which
+// circumstances, whether to print -- are listed under beliefs: below, so a
+// different experiment means editing this file and never the agent.
 
 mas vesna {
 
-    // Alice -- warm, a little disorganised, calm. Every mask starts at zero, so on
-    // episode 0 she is simply herself everywhere. strategy random because
-    // most_similar is deterministic and there would be nothing to learn.
-    // mask_delta bounds how far one mask may shift a trait.
+    // Alice is warm, a little disorganised and calm. All her masks start at zero, so
+    // in the first episode she behaves the same everywhere; any difference later was
+    // learned. strategy is random because the other option always picks the same plan,
+    // and then there would be nothing to learn. mask_delta is how far one mask is
+    // allowed to shift a single trait.
     agent alice: alice.asl {
         ag-class:            vesna.VesnaAgent
         temper:              temper(o(0.55), c(0.35), e(0.50), a(0.75), n(0.30), stress(0.0)[mood], satisfaction(0.0)[mood], social_energy(0.0)[mood])
@@ -29,8 +32,8 @@ mas vesna {
         goals:               start
     }
 
-    // Bob, Carol, Dave -- they do not learn and wear no mask. They are the social
-    // environment that pushes back, and they push back differently.
+    // Bob, Carol and Dave do not learn and wear no mask. They are the people Alice has
+    // to deal with, and they react differently from one another.
 
     agent bob: bob.asl {
         ag-class:  vesna.VesnaAgent

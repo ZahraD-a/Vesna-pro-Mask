@@ -8,10 +8,9 @@ import vesna.VesnaAgent;
 /**
  * vesna.via.end_episode
  *
- * The agent's life-cycle plan decides WHEN an episode is over -- that stays symbolic, as the
- * belief episode(N) in alice.asl. What an episode MEANS for learning (fold the accumulated regret
- * into every visited mask, write the logs, reset) is machinery and lives in the MaskLearner. This
- * action is the seam between the two.
+ * The agent decides WHEN an episode ends; that stays in alice.asl as the belief episode(N). What
+ * ending one MEANS -- update every mask visited, write the logs, start again -- happens in
+ * MaskLearner. This action joins the two.
  */
 public class end_episode extends DefaultInternalAction {
 

@@ -10,23 +10,20 @@ import jason.asSemantics.Option;
 import jason.runtime.Settings;
 
 /**
- * VesnaAgent for the mask scenario.
+ * The agent class every agent in this project uses.
  *
- * This is a deliberately thin agent: it is the original VEsNA-Pro personality-driven plan
- * selection plus one seam for masks. selectOption / selectIntention delegate to the ORIGINAL
- * Temper exactly as upstream does. The only additions are:
+ * It is deliberately thin: the original personality-driven plan selection, plus one hook for masks.
+ * Choosing a plan is handed to the original Temper, exactly as before. The only things added are:
  *
- *   - it reads the mask parameters from the .jcm and, if masks are on, builds a MaskLearner;
- *   - the MaskLearner pushes the effective personality into Temper (Temper.useEffective) whenever
- *     the agent changes circumstance, so the unchanged selection reads A_eff instead of A_core.
+ *   - it reads the mask settings from vesna.jcm and, if masks are switched on, creates a learner;
+ *   - that learner gives Temper the personality to show whenever the agent changes circumstance.
  *
- * The embodied machinery of the upstream VesnaAgent (the WebSocket body, sight/rcc handling) is
- * not here: this scenario has no physical body, only Jason agents exchanging KQML. That is a
- * different instantiation of the same framework, not a change to it.
+ * The original version of this class also drove a 3D body over a WebSocket. That is left out here,
+ * because this scenario has no body -- only agents sending each other messages.
  *
- * The receivers (Bob, Carol, Dave) use this same class with use_masks off, so they are plain
- * VEsNA-Pro temper agents -- they have a personality and pick among their reaction plans with it,
- * but they never wear or learn a mask.
+ * Bob, Carol and Dave use this same class with masks switched off, so they are ordinary
+ * personality-driven agents: they choose their replies with their own personality, but they never
+ * wear or learn a mask.
  */
 public class VesnaAgent extends Agent {
 
