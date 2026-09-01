@@ -1,4 +1,6 @@
-package vesna;
+package vesna.mask;
+
+import vesna.Temper;
 
 import java.io.IOException;
 import java.nio.file.*;
