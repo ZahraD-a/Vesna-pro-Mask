@@ -1,10 +1,10 @@
-// Bob: a busy, conscientious colleague. He appreciates being helped in a way
-// that respects schedules and boundaries, and is unimpressed by anything showy.
-// The strictest of the three about what belongs at work.
+// Bob is busy and organised. He likes being helped in a way that respects his
+// schedule, and is not impressed by anything showy. Of the three he is the
+// strictest about what belongs at work.
 //
-// improper/2 is his own opinion about what is out of place where. Alice cannot
-// read it. She discovers it the way anyone does -- by trying it and getting a
-// cold answer.
+// improper/2 below is his own opinion about what is out of place where. Alice
+// cannot read it; she only finds out by trying something and getting a cold
+// reply.
 
 needs_help(report).
 

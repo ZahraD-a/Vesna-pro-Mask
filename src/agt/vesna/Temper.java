@@ -86,10 +86,10 @@ public class Temper {
             throw new IllegalArgumentException( "Decision Strategy Unknown: " + strategy );
     }
 
-    // The only addition to the original Temper. The mask layer reads the core once at
-    // startup, then swaps in the effective personality clip(A_core + M_circumstance).
-    // Everything downstream -- computeWeight, selection, effects -- runs unchanged and is
-    // unaware masks exist.
+    // The only thing added to the original Temper. The mask code reads the real personality
+    // once at startup, then swaps in the personality to show while a mask is worn. Everything
+    // below -- scoring plans, choosing one, applying effects -- is untouched and does not know
+    // masks exist.
 
     public java.util.Map<String, Double> getPersonality() {
         return new java.util.HashMap<>( personality );
@@ -218,19 +218,24 @@ public class Temper {
     }
 
     private int getWeightedRandomIdx( List<Double> weights ) {
-        // Two fixes vs upstream, both in this method only.
+        // This method picks a plan at random, but weighted: a plan that suits the agent better
+        // should come up more often. Two things were wrong with the original version, and both
+        // are fixed here. Nothing else in this class is changed.
         //
-        // (1) `int currentMin = 0` accumulated double weights, truncating the running
-        //     cumulative, so the intervals stopped tiling and rolls past the last boundary
-        //     fell through to `return 0` -- pinning ~45% of choices on the first plan.
-        // (2) The min_bound/max_bound scan cannot express a negative weight: it makes the
-        //     cumulative move backwards, so the plan's interval has zero width and the scan
-        //     ends short of max_bound, leaving a dead zone that swallowed ~99% of rolls.
+        // (1) It added up the weights, which are decimals, into a whole-number variable. The
+        //     fractions were thrown away, the ranges no longer lined up, and any roll past the
+        //     last one fell through to the first plan -- which then won about 45% of the time
+        //     no matter what the personality was.
         //
-        // Neither is exercised upstream (both its configurations use most_similar, and its
-        // annotations are all non-negative), which is why they survived. A negative dot
-        // product means the plan is opposed to who the agent is, so it gets zero
-        // probability -- the same distribution MaskLearner.policy() models.
+        // (2) It could not cope with a negative weight. A negative made the running total go
+        //     backwards, leaving that plan no range at all and stopping the total short, so
+        //     almost every roll missed and fell through.
+        //
+        // Neither bug ever showed up in the original project, because it always chose plans a
+        // different way and never used negative numbers in its plan annotations.
+        //
+        // A negative weight means the plan goes against who the agent is, so it is given no
+        // chance of being picked at all.
         double total = 0.0;
         for ( double weight : weights )
             total += Math.max( 0.0, weight );

@@ -7,21 +7,22 @@ import java.nio.file.*;
 import java.util.*;
 
 /**
- * The mask extension in one place: the wardrobe, the policy the masked personality induces over the
- * plan styles, the counterfactual-regret update that moves the masks, and the logging.
+ * All the mask machinery in one class: the set of masks, how a mask changes which plan gets picked,
+ * how the masks are updated from experience, and the logging.
  *
- * It touches the original Temper through one method, useEffective(A_eff). On entering a
- * circumstance, wear() computes A_eff = clip(A_core + M_circumstance, 0, 1) and hands it over; the
- * original selection then runs unchanged, reading A_eff instead of A_core and unaware masks exist.
+ * It reaches into the original Temper through a single method, useEffective(). When the agent
+ * enters a circumstance, wear() works out the personality it will show -- the real one plus that
+ * circumstance's mask -- and hands it over. Temper then chooses a plan exactly as it always did,
+ * using this personality instead of the real one, and never knows a mask was involved.
  *
- * Only the mask vectors are learned. The core personality never changes. Per circumstance a
- * cumulative counterfactual regret over the styles,
+ * Only the masks change; the real personality never does. For each circumstance the learner keeps a
+ * running score per style, called regret:
  *
- *     r_c[a] += u(a) - sum_b policy(b) u(b)
+ *     regret[style] += what that style was worth - what the agent averaged
  *
- * whose positive part says which personas this circumstance rewards; the mask then steps toward the
- * offset that would turn the core into that persona, bounded by the per-trait clip so it bends the
- * agent without replacing it.
+ * Styles that end up with a positive score are the ones this circumstance rewards. The mask then
+ * edges toward the personality that would have chosen those styles, but only so far: each trait is
+ * capped, so a mask bends the agent without turning it into someone else.
  */
 public final class MaskLearner {
 
@@ -76,10 +77,9 @@ public final class MaskLearner {
     // ----------------------------------------------------------------- wearing a mask
 
     /**
- * Put on a mask and push the resulting effective personality into Temper. The argument is the mask
- * NAME chosen in alice.asl -- which masks are wearable, and which of them to put on, are both
- * symbolic decisions that live there. Unknown circumstances get a fresh mask rather than silently
- * reusing the default.
+ * Put on a mask and give the resulting personality to Temper. The name comes from alice.asl, which
+ * is where both "which masks fit here" and "which one to wear" are decided. A circumstance seen for
+ * the first time gets a new mask of its own rather than quietly falling back to the default.
  */
     public void wear(String maskName) {
         String circ = maskName.startsWith("mask_") ? maskName.substring(5) : maskName;
@@ -103,11 +103,10 @@ public final class MaskLearner {
     // ----------------------------------------------------------------- the policy
 
     /**
- * The mixed strategy the masked personality induces over the styles. Mirrors Temper's weighted
- * random selection exactly -- weight(a) is the same dot product, P(a) = weight(a)/sum -- so the
- * regret baseline is scored against what the agent actually plays. Annotations are signed, so a dot
- * product may be negative: that plan is out of character and gets zero probability, which is what
- * Temper.getWeightedRandomIdx does too.
+ * How likely the agent is to pick each style while wearing the current mask. This repeats exactly
+ * what Temper does when it chooses a plan, so the learner measures each style against what the
+ * agent really does rather than against a guess. A style can score below zero, meaning it goes
+ * against who the agent is; those get no chance of being picked, which is what Temper does too.
  */
     private double[] policy() {
         Map<String, Double> eff = effective();

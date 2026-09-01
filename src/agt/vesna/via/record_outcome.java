@@ -8,11 +8,10 @@ import vesna.VesnaAgent;
 /**
  * vesna.via.record_outcome(Source, Outcome)
  *
- * The situation has responded with a symbolic outcome (accepted / tolerated / rejected in the
- * social scenario; goal_achieved / delayed / failed in a non-social one). This is the only point
- * where genuine external feedback enters -- it was produced outside the learning agent, not
- * sampled from a table inside it -- and it triggers the counterfactual regret update that moves
- * the active circumstance's mask.
+ * A reply has come back: accepted, tolerated or rejected here, or something like goal_achieved,
+ * delayed or failed in a non-social setting. This is the only place real outside feedback enters.
+ * It came from another agent, not from any table inside Alice, and it is what drives the update to
+ * the mask she is currently wearing.
  */
 public class record_outcome extends DefaultInternalAction {
 

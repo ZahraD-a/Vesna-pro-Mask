@@ -9,11 +9,10 @@ import vesna.VesnaAgent;
 /**
  * vesna.via.wear_mask(MaskName)
  *
- * selectMask, the second half of Angelo's getMasks / selectMask pair. getMasks (the .findall over
- * wearable/1) and the choice of which wearable mask to put on both happen in alice.asl, so the
- * decision is symbolic and overridable there. This action just tells the MaskLearner which mask
- * was chosen; the learner computes A_eff = clip(core + mask) and pushes it into the original
- * Temper. Wearing a mask is not a learning step and carries no reward.
+ * Tells the learner which mask the agent just put on. Deciding which masks fit and which one to
+ * wear both happen in alice.asl, so those rules can be changed without touching Java. Here the
+ * learner only works out the effective personality, clip(core + mask), and hands it to Temper.
+ * Putting on a mask is not a learning step and earns no reward.
  */
 public class wear_mask extends DefaultInternalAction {
 

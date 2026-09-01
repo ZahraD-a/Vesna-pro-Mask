@@ -4,11 +4,13 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
- * A vector of OCEAN deltas bound to a circumstance, where A_eff = clip(A_core + M, 0, 1).
+ * One mask: a small adjustment to each of the five traits, belonging to one circumstance. The
+ * personality the agent shows is the real one plus this, kept within 0 and 1.
  *
- * Starts at zero -- on episode 0 the agent is simply itself everywhere -- and is the only thing
- * learned; the core is never touched. Each delta is clipped to [-clip, +clip] so a mask bends the
- * agent without replacing it: one stable identity, many learned masks.
+ * Every mask starts at zero, so in the first episode the agent is simply itself everywhere and any
+ * difference later on was learned. The masks are the only thing that changes; the real personality
+ * never does. Each adjustment is capped, so a mask can bend the agent but not replace it: one
+ * person, several faces.
  */
 public final class Mask {
 
