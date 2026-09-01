@@ -31,12 +31,15 @@ next_id(0).
     :   episode(E) & max_episodes(M) & E >= M
     <-  .print("alice: done after ", E, " episodes");
         vesna.via.final_report;
-        // The MAS console window is destroyed when .stopMAS brings the JVM down, so
-        // hold it open long enough to read the report. It is also on disk, in
-        // results/latest/report.txt, if this runs out before you are finished.
-        .print("report above is also in results/latest/report.txt -- closing in 90s");
-        .wait(90000);
+        !close_down.
+
+// The console window dies with the JVM, so the run can be held open long enough to
+// read the report. close_delay is set in vesna.jcm; the report is on disk either way.
++!close_down : close_delay(D) & D > 0
+    <-  .print("report is also in results/latest/report.txt -- closing in ", D, "ms");
+        .wait(D);
         .stopMAS.
++!close_down <- .stopMAS.
 
 +!visit_all([]).
 +!visit_all([C|Rest])
@@ -128,11 +131,6 @@ next_id(0).
         effects([social_energy(-0.05)[mood], satisfaction(-0.05)[mood]])]
 +!manage(Ag, T) <- !offer(Ag, T, ignore).
 
-// ---------------------------------------------------------------------
-//  ACTING, AND WAITING TO SEE HOW IT LANDED
-// ---------------------------------------------------------------------
-//
-//  The identifier makes each exchange unique. Without it a second
 // The id keeps each exchange distinct. Without it a repeated reply would already be
 // a held belief, no event would fire, and the exchange would vanish.
 

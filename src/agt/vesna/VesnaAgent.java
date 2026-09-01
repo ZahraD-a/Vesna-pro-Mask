@@ -2,7 +2,6 @@ package vesna;
 
 import java.util.*;
 import vesna.mask.MaskLearner;
-import java.util.logging.Logger;
 
 import jason.asSemantics.Agent;
 import jason.asSemantics.Intention;
@@ -24,12 +23,10 @@ public class VesnaAgent extends Agent {
 
     private Temper temper;
     private MaskLearner masks;
-    protected transient Logger logger;
 
     @Override
     public void initAg() {
         super.initAg();
-        logger = getTS().getLogger();
 
         Settings s = getTS().getSettings();
         String temperLiteral = s.getUserParameter("temper");
@@ -69,6 +66,5 @@ public class VesnaAgent extends Agent {
     public Temper getTemper()      { return temper; }
     public MaskLearner getMasks()  { return masks; }
 
-    private static long   parseLong(String v, long d)     { try { return v == null ? d : Long.parseLong(v.trim()); }     catch (NumberFormatException e) { return d; } }
     private static double parseDouble(String v, double d) { try { return v == null ? d : Double.parseDouble(v.trim()); } catch (NumberFormatException e) { return d; } }
 }

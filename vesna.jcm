@@ -25,6 +25,7 @@ mas vesna {
                              rounds_per_partner(3),
                              max_episodes(120),
                              dialogue_episodes(2),
+                             close_delay(90000),
                              verbose
         goals:               start
     }
