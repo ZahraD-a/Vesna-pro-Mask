@@ -47,15 +47,9 @@ public class VesnaAgent extends Agent {
         temper = new Temper(temperLiteral, strategy);   // ORIGINAL Temper, unchanged
 
         if ("true".equals(s.getUserParameter("use_masks"))) {
-            List<String> circumstances = new ArrayList<>();
-            String cs = s.getUserParameter("circumstances");
-            if (cs != null) for (String c : cs.split(",")) circumstances.add(c.trim());
-
             double delta = parseDouble(s.getUserParameter("mask_delta"), 0.5);
             double lr    = parseDouble(s.getUserParameter("mask_learning_rate"), 0.08);
-            int    maxEp = (int) parseLong(s.getUserParameter("max_episodes"), 0);
-
-            masks = new MaskLearner(temper, circumstances, delta, lr, maxEp);
+            masks = new MaskLearner(temper, delta, lr);
         }
     }
 
