@@ -1,22 +1,19 @@
-// Four agents. They all run the same agent class; the only thing that makes Alice
-// different is this file, where masks are switched on for her and nobody else.
+// Four agents, all running the same class. The only thing that makes Alice
+// different is this file, where masks are switched on for her alone.
 //
-// A personality is written with five traits from 0 to 1. Plan annotations, in the
-// .asl files, run from -1 to 1. Both are the ranges the original code already
-// accepts, and neither has been widened. The only new thing is that the negative
-// half of the plan range is actually used here.
+// Personalities use five traits from 0 to 1; plan annotations in the .asl files run
+// from -1 to 1. Both are ranges the original code already accepts. What is new is
+// only that the negative half of the plan range is used at all.
 //
-// Settings for the experiment -- how many episodes, how many rounds, which
-// circumstances, whether to print -- are listed under beliefs: below, so a
-// different experiment means editing this file and never the agent.
+// Experiment settings are under beliefs: below, so changing an experiment means
+// editing this file rather than the agent.
 
 mas vesna {
 
-    // Alice is warm, a little disorganised and calm. All her masks start at zero, so
-    // in the first episode she behaves the same everywhere; any difference later was
-    // learned. strategy is random because the other option always picks the same plan,
-    // and then there would be nothing to learn. mask_delta is how far one mask is
-    // allowed to shift a single trait.
+    // Warm, a little disorganised, calm. Every mask starts at zero, so any difference
+    // between circumstances was learned. strategy must be random: the alternative is
+    // deterministic and would leave nothing to learn. mask_delta caps how far one
+    // mask may shift a trait.
     agent alice: alice.asl {
         ag-class:            vesna.VesnaAgent
         temper:              temper(o(0.55), c(0.35), e(0.50), a(0.75), n(0.30), stress(0.0)[mood], satisfaction(0.0)[mood], social_energy(0.0)[mood])
@@ -32,8 +29,8 @@ mas vesna {
         goals:               start
     }
 
-    // Bob, Carol and Dave do not learn and wear no mask. They are the people Alice has
-    // to deal with, and they react differently from one another.
+    // Bob, Carol and Dave do not learn and wear no mask. They react differently from
+    // one another, which is what Alice has to work out.
 
     agent bob: bob.asl {
         ag-class:  vesna.VesnaAgent

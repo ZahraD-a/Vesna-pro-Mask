@@ -10,20 +10,15 @@ import jason.asSemantics.Option;
 import jason.runtime.Settings;
 
 /**
- * The agent class every agent in this project uses.
+ * The agent class used by every agent here. Plan choice is handed to the original Temper unchanged;
+ * the only additions are reading the mask settings from vesna.jcm and, when masks are on, creating
+ * the learner that supplies Temper with the personality to show.
  *
- * It is deliberately thin: the original personality-driven plan selection, plus one hook for masks.
- * Choosing a plan is handed to the original Temper, exactly as before. The only things added are:
+ * The original class also drove a 3D body over a WebSocket. That is left out: this scenario has no
+ * body, only agents exchanging messages.
  *
- *   - it reads the mask settings from vesna.jcm and, if masks are switched on, creates a learner;
- *   - that learner gives Temper the personality to show whenever the agent changes circumstance.
- *
- * The original version of this class also drove a 3D body over a WebSocket. That is left out here,
- * because this scenario has no body -- only agents sending each other messages.
- *
- * Bob, Carol and Dave use this same class with masks switched off, so they are ordinary
- * personality-driven agents: they choose their replies with their own personality, but they never
- * wear or learn a mask.
+ * Bob, Carol and Dave use the same class with masks off, so they choose replies with their own
+ * personality but never wear or learn a mask.
  */
 public class VesnaAgent extends Agent {
 

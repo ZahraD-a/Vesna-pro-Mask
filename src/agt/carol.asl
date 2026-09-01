@@ -1,6 +1,5 @@
-// Carol cares about people being present. What works with her is someone actually
-// stopping and being there. She minds coldness much more than she minds someone
-// being informal, and at home she finds being handled by the book insulting.
+// Warm and relational. What works with her is someone actually stopping to help.
+// She minds coldness far more than informality, and at home finds procedure cold.
 
 needs_help(setup).
 
