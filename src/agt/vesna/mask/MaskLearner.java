@@ -68,7 +68,7 @@ public final class MaskLearner {
     private final Map<String, double[]> components = new LinkedHashMap<>();  // circ -> [outcome,auth,cost,n]
     private final Map<String, int[]>    outcomes   = new LinkedHashMap<>();  // circ -> [pos,neu,neg]
 
-    private static final Path OUT = Path.of("results", "mas");
+    private static final Path OUT = Path.of("results", "latest");
 
     public MaskLearner(Temper temper, List<String> circumstances,
                        double maskDelta, double learningRate, int maxEpisodes) {
