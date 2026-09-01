@@ -86,19 +86,10 @@ public class Temper {
             throw new IllegalArgumentException( "Decision Strategy Unknown: " + strategy );
     }
 
-    // ---------------------------------------------------------------------
-    //  MASK SEAM  (the ONLY addition to the original VEsNA-Pro Temper)
-    // ---------------------------------------------------------------------
-    //  The mask framework does not touch plan selection, compatibility, or
-    //  anything else in this class. It only swaps the personality vector that
-    //  computeWeight() reads, replacing the core with the effective personality
-    //  A_eff = clip(A_core + M_circumstance). Everything downstream -- weights,
-    //  most-similar / weighted-random, effects -- runs exactly as before and is
-    //  unaware masks exist. This is the modular extension point described in the
-    //  proposal: the mask sits BETWEEN personality and compatibility.
-    //
-    //  getPersonality() lets the mask layer read the core once, at startup, so
-    //  it never has to re-parse the .jcm literal.
+    // The only addition to the original Temper. The mask layer reads the core once at
+    // startup, then swaps in the effective personality clip(A_core + M_circumstance).
+    // Everything downstream -- computeWeight, selection, effects -- runs unchanged and is
+    // unaware masks exist.
 
     public java.util.Map<String, Double> getPersonality() {
         return new java.util.HashMap<>( personality );
@@ -227,33 +218,19 @@ public class Temper {
     }
 
     private int getWeightedRandomIdx( List<Double> weights ) {
-        // BUG FIX vs upstream VEsNA-Pro: the original declared `int currentMin = 0` and then did
-        // `currentMin += weights.get(i)` with double weights, truncating the running cumulative to
-        // an integer. The roulette intervals then stopped tiling [min,max] and every roll past the
-        // last (truncated) boundary fell through to `return 0`, biasing selection heavily toward
-        // the FIRST plan. Harmless upstream (guards usually leave 1-2 applicable plans) but fatal
-        // here, where nine plans are always applicable: it pinned ~45% of choices on plan 0
-        // regardless of personality, so the mask could not steer behaviour. Fixed to a proper
-        // cumulative roulette with a double accumulator. Nothing else in selection changes.
+        // Two fixes vs upstream, both in this method only.
         //
-        // BUG FIX (2) -- SIGNED weights. The personality stays in [0,1] exactly as upstream, but a
-        // plan's temper() annotation may be negative -- the original already allows that, and
-        // validates annotations at [-1,1] just above in computeWeight. A positive trait times a
-        // negative annotation is a NEGATIVE compatibility score, and the original min_bound /
-        // max_bound scheme cannot express that. A negative weight makes the running cumulative move BACKWARDS, so
-        // that plan's interval has zero width, the following intervals re-cover ground already
-        // covered, and the scan ends well short of max_bound. The leftover range is a dead zone
-        // that every remaining roll falls through: on a realistic signed weight vector it swallowed
-        // 99% of the rolls and dumped them all on a single plan. THAT is the real cause of the
-        // plan-0 domination previously worked around by confining every trait to [0,1] -- the
-        // range was never the problem, this scan was.
+        // (1) `int currentMin = 0` accumulated double weights, truncating the running
+        //     cumulative, so the intervals stopped tiling and rolls past the last boundary
+        //     fell through to `return 0` -- pinning ~45% of choices on the first plan.
+        // (2) The min_bound/max_bound scan cannot express a negative weight: it makes the
+        //     cumulative move backwards, so the plan's interval has zero width and the scan
+        //     ends short of max_bound, leaving a dead zone that swallowed ~99% of rolls.
         //
-        // A negative dot product means the plan projects a persona OPPOSED to who the agent is
-        // ("being conscientious with weight -1 means being sloppy and unreliable"). Such a plan is
-        // not merely unlikely, it is out of character, so it gets zero probability. This is exactly
-        // the distribution MaskLearner.policy() already models, so the counterfactual-regret
-        // baseline is now scored against the distribution the agent really plays. If nothing at all
-        // is compatible, fall back to uniform rather than always conceding to the same plan.
+        // Neither is exercised upstream (both its configurations use most_similar, and its
+        // annotations are all non-negative), which is why they survived. A negative dot
+        // product means the plan is opposed to who the agent is, so it gets zero
+        // probability -- the same distribution MaskLearner.policy() models.
         double total = 0.0;
         for ( double weight : weights )
             total += Math.max( 0.0, weight );

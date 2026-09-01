@@ -1,37 +1,19 @@
-// =====================================================================
-//  ALICE  --  the agent that learns its masks
-// =====================================================================
+// Alice, the agent that learns its masks.
 //
-//  Alice is one agent among four. Bob, Carol and Dave are real, separate
-//  agents in real, separate files; she reaches them only by sending
-//  messages and can only observe what they choose to send back. Nothing
-//  here simulates them. That is the whole point of this rewrite:
+// One agent among four. Bob, Carol and Dave are separate agents in separate
+// files; Alice reaches them only by message and sees only what they send back.
+// Nothing here simulates them -- Angelo: "Alice cannot choose for Bob."
 //
-//      "if I open the configuration file of the multi-agent system there
-//       should be Alice, Bob, Carol and David. Otherwise, if I see only
-//       Alice, I will be lost. Alice cannot choose for Bob."
-//
-//  Time is symbolic: the agent believes episode(N) and flips it in its own
-//  recursive life cycle. It does not know what an "episode" means for
-//  learning -- that lives in MaskLearner.java, off the reasoning cycle.
-// =====================================================================
+// Time is symbolic: she believes episode(N) and advances it herself. What an
+// episode means for learning lives in MaskLearner, off the reasoning cycle.
 
 { include("mask_rules.asl") }
 
-// ---------------------------------------------------------------------
-//  BELIEFS
-// ---------------------------------------------------------------------
-
 // Alice's own state. Everything else she reasons over -- circumstances,
 // rounds_per_partner, max_episodes, dialogue_episodes, verbose -- is experiment
-// configuration and is declared in vesna.jcm, so a different run means a
-// different .jcm, never an edit to this file.
+// configuration and lives in vesna.jcm.
 episode(0).
 next_id(0).
-
-// ---------------------------------------------------------------------
-//  LIFE CYCLE
-// ---------------------------------------------------------------------
 
 +!start
     <-  .print("alice: starting");
@@ -59,10 +41,6 @@ next_id(0).
         .wait(90000);
         .stopMAS.
 
-// ---------------------------------------------------------------------
-//  MOVING THROUGH CIRCUMSTANCES
-// ---------------------------------------------------------------------
-
 +!visit_all([]).
 +!visit_all([C|Rest])
     <-  -+circumstance(C);
@@ -71,19 +49,16 @@ next_id(0).
         !meet_everyone;
         !visit_all(Rest).
 
-// getMasks: ask the belief base which masks the circumstance permits (a SET; several
-//           rules may hold at once). selectMask: put on the most specific one -- the
-//           dedicated circumstance mask comes before the always-wearable default.
-// Both halves are symbolic and live here, exactly as Angelo described; wear_mask only
-// hands the chosen name to the learner, which computes A_eff and pushes it to Temper.
+// getMasks then selectMask: wearable/1 returns a set, .nth(0) takes the most
+// specific. Both halves stay symbolic and overridable here; wear_mask only hands
+// the chosen name to the learner.
 +!wear_mask(C)
     <-  .findall(M, wearable(M), Wearable);
         .nth(0, Wearable, Chosen);
         vesna.via.wear_mask(Chosen).
 
-// Every other agent in the MAS, discovered at run time. Adding a fifth
-// agent to the .jcm needs no change here -- which is exactly what makes a
-// scalability experiment meaningful.
+// Partners are discovered at run time, so adding a fifth agent to the .jcm
+// needs no change here.
 +!meet_everyone
     :   rounds_per_partner(K)
     <-  .my_name(Me);
@@ -112,47 +87,17 @@ next_id(0).
     <-  !manage(Ag, T).
 +!on_reply(_, _).                   // nothing needed, or no answer
 
-// ---------------------------------------------------------------------
-//  NINE WAYS TO ACHIEVE ONE GOAL
-// ---------------------------------------------------------------------
+// Nine ways to achieve !manage(Partner, Task). All have an empty context, so all
+// nine are applicable at every decision -- Andrea: "you should always have plans
+// that are applicable at the same time, because otherwise it will be so
+// deterministic that you will not learn anything."
 //
-//  Every plan below achieves !manage(Partner, Task): the partner ends up
-//  handled. What differs is the social shape of the act. All nine have an
-//  empty context, so all nine are applicable at every single decision --
-//  the choice is real, never forced by the plan library.
-//
-//      "you should always have plans that are applicable at the same time,
-//       because otherwise it will be so deterministic that you will not
-//       learn anything ... how to behave at work will not be the choice
-//       between three plans, it will be the choice between ten ways to
-//       achieve the same goal."
-//
-//  The temper() annotation (OCEAN in [-1,1]) is the persona the plan projects.
-//  The ORIGINAL Temper weighs it against the effective personality
-//  clip(core + active mask), so the SAME nine plans are sampled with different
-//  probabilities depending on which mask is worn. These numbers mirror the
-//  style table in PlanCatalog.java, which the reward machine reads.
-//
-//  THE SIGN MATTERS, and it is the ORIGINAL Temper that allows it: personalities
-//  are validated in [0,1], but plan annotations in [-1,1]. Nothing here widens
-//  anything -- we are simply the first to USE the signed half of the range the
-//  framework always accepted. Its own demo never did: every annotation in the
-//  upstream alice.asl is non-negative.
-//
-//  Following Andrea's Definition 3.1, -1 is the REVERSE of a trait, not a small
-//  amount of it: ignore(a(-0.90)) projects active coldness, polite_decline
-//  (e(-0.40)) projects withdrawal. A positive personality trait times a negative
-//  annotation gives a NEGATIVE compatibility score, so Alice's warm core
-//  (a(0.75)) scores ignore at -1.39 and polite_decline at -0.39 -- and the
-//  original roulette gives a non-positive weight no probability at all.
-//
-//  That is what makes the mask do real work. Those two styles are not merely
-//  unlikely for her, they are out of character: she cannot play them until a
-//  learned work-mask lowers her agreeableness enough to bring them into reach.
-//  That is the paper's claim -- a professionally guarded persona at work despite
-//  a warm core -- and with all-positive annotations it was unstatable, because
-//  every score was positive and all nine plans sat inside a 3.5x band.
-// ---------------------------------------------------------------------
+// temper() is the persona the plan projects, OCEAN in [-1,1] -- the range the
+// original Temper already accepts for annotations. The sign matters: -1 is the
+// REVERSE of a trait, not a little of it, so ignore(a(-0.90)) is active coldness.
+// Against Alice's warm core (a(0.75)) that scores -1.39, and a non-positive weight
+// gets no probability -- she cannot play it until a mask lowers her agreeableness.
+// These numbers must match PlanCatalog.java; PlanCatalog.validate() checks that.
 
 @drop_everything[temper([o(0.20), c(-0.50), e(0.40), a(0.90), n(0.10)]),
                  effects([social_energy(-0.10)[mood], satisfaction(0.10)[mood]])]
@@ -192,12 +137,12 @@ next_id(0).
 // ---------------------------------------------------------------------
 //
 //  The identifier makes each exchange unique. Without it a second
-//  identical reaction would be a belief Alice already holds, no event
-//  would be generated, and the interaction would silently vanish.
+// The identifier makes each exchange unique: without it a repeated reaction would
+// be a belief Alice already holds, no event would fire, and the exchange would
+// silently vanish.
 
-//  The circumstance travels with the offer because the partner reacts to the
-//  whole situation, not to the act alone -- the same joke lands at home and
-//  dies at work. Alice cannot see WHY it died; she only gets the cold reply.
+// The circumstance travels with the offer: the partner reacts to the whole
+// situation, not the act alone. Alice never sees why -- only the reply.
 
 +!offer(Ag, T, Style)
     :   next_id(I) & circumstance(C)
@@ -208,20 +153,15 @@ next_id(0).
         .send(Ag, tell, offer(T, Style, C, I));
         .wait(20).
 
-// The only place real external feedback enters. The outcome was produced by
-// another agent's own personality choosing among its own reaction plans.
+// The only place external feedback enters, produced by another agent's own
+// personality choosing among its own reaction plans.
 +outcome(I, Result)[source(Ag)]
     <-  .abolish(outcome(I, _));
         !say("   <- ", Ag, " : ", Result);
         vesna.via.record_outcome(Ag, Result).
 
-// ---------------------------------------------------------------------
-//  DIALOGUE TRACE
-// ---------------------------------------------------------------------
-//
-//  Two plans per hook: the first fires while the agent still believes it is
-//  verbose, the second is the catch-all that does nothing. Neither carries a
-//  temper() annotation, so this never interferes with plan selection.
+// Dialogue trace. Two plans per hook: verbose, then a catch-all that does
+// nothing. Neither carries temper(), so this cannot disturb plan selection.
 
 +!say(A, B, C) : verbose <- .print(A, B, C).
 +!say(_, _, _).
@@ -232,9 +172,8 @@ next_id(0).
 +!announce(E) : verbose <- .print("======== episode ", E, " ========").
 +!announce(_).
 
-// Stop the trace, and tell the others to stop theirs. Alice has no authority
-// over their belief bases -- she can only send them a message and let their
-// own plan decide what to do with it.
+// Alice has no authority over the others' belief bases; she sends a message and
+// their own plan decides what to do with it.
 +!maybe_hush(E)
     :   dialogue_episodes(D) & E >= D & verbose
     <-  .print("---- dialogue trace off after ", D, " episodes; ",

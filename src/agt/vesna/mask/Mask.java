@@ -4,18 +4,11 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
- * A mask is a vector of OCEAN deltas, one per trait, bound to a circumstance.
+ * A vector of OCEAN deltas bound to a circumstance, where A_eff = clip(A_core + M, 0, 1).
  *
- *     A_eff = clip( A_core + M , 0 , 1 )
- *
- * It starts at zero -- on episode 0 the agent is simply itself in every circumstance -- and is
- * the ONLY thing the framework learns. The core personality is never touched. Each delta is
- * clipped to [-delta, +delta] so a mask can bend the agent but not replace it: a reserved person
- * among trusted friends moves toward the middle, never to the maximum. This is the bounded,
- * Pirandellian reading agreed in the meeting -- one stable identity, many learned masks.
- *
- * OCEAN is stored with the single-letter keys o/c/e/a/n, the notation Andrea used in his own
- * sketch and the notation the .jcm and plan annotations use.
+ * Starts at zero -- on episode 0 the agent is simply itself everywhere -- and is the only thing
+ * learned; the core is never touched. Each delta is clipped to [-clip, +clip] so a mask bends the
+ * agent without replacing it: one stable identity, many learned masks.
  */
 public final class Mask {
 

@@ -1,60 +1,30 @@
-// =====================================================================
-//  RECEIVER  --  Bob, Carol and Dave
-// =====================================================================
+// Receiver -- Bob, Carol and Dave. One file, three agents, each instantiated in
+// vesna.jcm with its own personality and its own beliefs about what belongs where.
 //
-//  One file, three agents. Each is instantiated in vesna.jcm with its own
-//  personality, and each carries its own taste and its own sense of what
-//  is out of place where:
+// A receiver does not learn and wears no mask. It has a personality and a handful
+// of ways to react, and its personality picks among them, so its answer is neither
+// scripted nor drawn from a table inside Alice.
 //
-//      "Yes, this can be used by any agent, so we can have four different
-//       ASL files with the same code."
+// improper/2 is this agent's own opinion, invisible to Alice. She finds out the way
+// anyone does -- Andrea: "you make some jokes while you are taking a coffee, it is
+// your second day at work, and you see that nobody is laughing."
 //
-//  A receiver does not learn and wears no mask. It has a personality and a
-//  handful of ways to react, and its personality picks among them -- so its
-//  answer is neither scripted nor sampled from a table living inside Alice.
-//
-//  WHERE THE SOCIAL NORMS LIVE
-//  ---------------------------
-//  improper(Style, Circumstance) is a belief of THIS agent about what does
-//  not belong here. Alice cannot read it. She finds out the way anybody
-//  finds out:
-//
-//      "you make some jokes while you are taking a coffee, it is your
-//       second day at work, and you see that nobody is laughing."
-//
-//  The three receivers do not agree with each other -- Dave will laugh at a
-//  joke at work, Bob will not -- so there is no oracle anywhere in the
-//  system, only three opinions Alice has to average over experience.
-//
-//  Beliefs supplied per agent: needs_help/1, likes_style/1, improper/2.
+// Per-agent beliefs supplied by bob.asl / carol.asl / dave.asl: needs_help/1,
+// likes_style/1, improper/2.
 
-// Trace its own replies until Alice broadcasts hush. Alice has no power over
-// this belief base -- she sends a message, and this plan decides to comply.
 verbose.
 
 +hush[source(_)]
     <-  .abolish(hush);
         .abolish(verbose).
 
-// ---------------------------------------------------------------------
-//  THE NICHE OF EACH CIRCUMSTANCE  --  what does NOT belong here
-// ---------------------------------------------------------------------
-//
-//  improper/2 is SHARED by all three receivers: at work, impulsive and
-//  dismissive help is out of place for everyone; at home, procedural
-//  distance is; at a conference, hiding is. Sharing the rejected set is a
-//  deliberate design choice for a regret learner -- it gives each
-//  circumstance one CLEAR, coherent direction, so the counterfactual gap
-//  says "a more conscientious / more social / more open mask would have
-//  worked here", not "everything is equally bad". That directed gap is what
-//  the mask needs to move.
-//
-//  Partner variation lives in the ACCEPTED set instead: likes_style differs
-//  per agent (bob.asl / carol.asl / dave.asl), so which of the appropriate
-//  styles are met warmly vs merely tolerated changes from partner to
-//  partner. The mask still learns the shared, circumstance-level niche, so
-//  it transfers across partners -- the scalability result -- while the
-//  feedback stays partner-dependent and stochastic.
+// The shared part of the norm: what is out of place for everyone. Sharing the
+// REJECTED set gives each circumstance one coherent direction, so the
+// counterfactual gap says "a more conscientious mask would have worked here"
+// rather than "everything is equally bad" -- which is what the mask needs to move.
+// Partner variation lives in the accepted set instead (likes_style, per agent), so
+// the mask learns the circumstance-level niche and transfers across partners while
+// the feedback stays partner-dependent.
 
 // work: professional. Impulsive rescue and clowning and vanishing are out.
 improper(drop_everything, work).
@@ -80,33 +50,17 @@ approve(Style, Circ)   :- likes_style(Style) & not improper(Style, Circ).
 // Would it at least be fine with it? (appropriate, even if not its taste)
 tolerate(Style, Circ)  :- not improper(Style, Circ).
 
-// ---------------------------------------------------------------------
-//  SOMEONE OFFERS HELP
-// ---------------------------------------------------------------------
-
 +offer(T, Style, Circ, I)[source(Ag)]
     <-  .abolish(offer(T, Style, Circ, I));
         !react(Ag, I, Style, Circ).
 
-// ---------------------------------------------------------------------
-//  HOW THAT LANDS  --  a symbolic outcome, not "warm/cold"
-// ---------------------------------------------------------------------
+// How it lands. Appreciated and appropriate -> {accepted, tolerated} apply; not its
+// taste but allowed -> {tolerated, rejected}; out of place here -> {rejected} only,
+// whatever this agent's personality. Which of the applicable outcomes fires is
+// decided by its own temper, so feedback is partner-dependent and stochastic.
 //
-//  Appreciated and appropriate  -> {accepted, tolerated} are applicable
-//  Not its taste, but allowed   -> {tolerated, rejected}
-//  Out of place here            -> {rejected} only, whatever this agent's
-//                                  personality is: the room goes quiet
-//
-//  The outcome vocabulary is deliberately general -- the same accepted /
-//  tolerated / rejected terms (scored in RewardMachine) would be emitted by
-//  an environment sensor in a non-social scenario. Which of the applicable
-//  outcomes actually fires is decided by this agent's own temper, weighted
-//  at random: an agreeable extravert accepts far more readily than a guarded,
-//  conscientious one, so the feedback is partner-dependent AND stochastic.
-//
-//  Both plan annotations and the agent's own personality (in the .jcm) are in
-//  [0,1], so the original Temper's weighted-random selection stays a genuine
-//  mix (its roulette needs positive weights).
+// The vocabulary is deliberately general: an environment sensor would emit
+// goal_achieved / delayed / failed into the same reward machine.
 
 @react_accept[temper([o(0.65), c(0.50), e(0.75), a(0.90), n(0.35)])]
 +!react(Ag, I, Style, Circ)
@@ -126,11 +80,6 @@ tolerate(Style, Circ)  :- not improper(Style, Circ).
     <-  .send(Ag, tell, outcome(I, rejected));
         !say(Style, " in ", Circ, "  ->  rejected").
 
-// ---------------------------------------------------------------------
-//  DIALOGUE TRACE
-// ---------------------------------------------------------------------
-//  No temper() annotation on either plan, so this cannot disturb which
-//  reaction gets selected.
-
+// No temper() on either plan, so this cannot disturb which reaction is selected.
 +!say(A, B, C, D) : verbose <- .print(A, B, C, D).
 +!say(_, _, _, _).

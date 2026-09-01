@@ -7,39 +7,21 @@ import java.nio.file.*;
 import java.util.*;
 
 /**
- * MaskLearner: the whole mask extension in one place -- the wardrobe, the policy that turns the
- * masked personality into a distribution over plans, the counterfactual-regret update that moves
- * the masks, and the logging.
+ * The mask extension in one place: the wardrobe, the policy the masked personality induces over the
+ * plan styles, the counterfactual-regret update that moves the masks, and the logging.
  *
- * HOW IT PLUGS INTO THE ORIGINAL VEsNA-Pro
- * ----------------------------------------
- * It touches the original Temper through exactly one method, useEffective(A_eff). When the agent
- * enters a circumstance, wear() picks that circumstance's mask, computes
+ * It touches the original Temper through one method, useEffective(A_eff). On entering a
+ * circumstance, wear() computes A_eff = clip(A_core + M_circumstance, 0, 1) and hands it over; the
+ * original selection then runs unchanged, reading A_eff instead of A_core and unaware masks exist.
  *
- *     A_eff = clip( A_core + M_circumstance , 0 , 1 )
- *
- * and hands it to Temper. From then on the ORIGINAL selection runs unchanged -- computeWeight,
- * most-similar / weighted-random, effects -- reading A_eff instead of A_core, unaware that a mask
- * exists. This is the modular seam from the proposal: the mask sits between personality and
- * compatibility, and nothing in the deliberation cycle is rewritten.
- *
- * WHAT IS LEARNED
- * ---------------
- * Only the mask vectors. The core personality never changes (that is the difference from the
- * previous regret paper, which evolved the core). Circumstances are given, and the
- * circumstance-to-mask binding is given; Step 1 learns just the numbers inside each mask.
- *
- * THE UPDATE
- * ----------
- * Per circumstance c a cumulative counterfactual regret over the plan styles:
+ * Only the mask vectors are learned. The core personality never changes. Per circumstance a
+ * cumulative counterfactual regret over the styles,
  *
  *     r_c[a] += u(a) - sum_b policy(b) u(b)
  *
- * policy is the mixed strategy the masked personality induces (a model of the original weighted
- * selection); u comes from the RewardMachine, exact for the executed style and estimated from
- * history for the rest. The positive part of r_c says which personas this circumstance rewards,
- * and the mask steps (exponential moving average) toward the offset that would turn the core into
- * that persona -- bounded by the per-trait clip, so it bends the agent without replacing it.
+ * whose positive part says which personas this circumstance rewards; the mask then steps toward the
+ * offset that would turn the core into that persona, bounded by the per-trait clip so it bends the
+ * agent without replacing it.
  */
 public final class MaskLearner {
 
@@ -94,13 +76,11 @@ public final class MaskLearner {
     // ----------------------------------------------------------------- wearing a mask
 
     /**
-     * Put on a mask and push the resulting effective personality into the original Temper.
-     *
-     * The argument is the mask NAME the agent's ASL chose -- getMasks (.findall over wearable/1)
-     * then selectMask (take the most specific) happen in alice.asl, so the whole "which masks may
-     * I wear, which do I put on" decision is symbolic and overridable there. Here we only map the
-     * chosen name to its wardrobe entry and compute A_eff.
-     */
+ * Put on a mask and push the resulting effective personality into Temper. The argument is the mask
+ * NAME chosen in alice.asl -- which masks are wearable, and which of them to put on, are both
+ * symbolic decisions that live there. Unknown circumstances get a fresh mask rather than silently
+ * reusing the default.
+ */
     public void wear(String maskName) {
         String circ = maskName.startsWith("mask_") ? maskName.substring(5) : maskName;
         activeMask = wardrobe.computeIfAbsent(circ, c -> new Mask("mask_" + c, c, maskDelta));
@@ -123,19 +103,12 @@ public final class MaskLearner {
     // ----------------------------------------------------------------- the policy
 
     /**
-     * The mixed strategy the masked personality induces over the plan styles. This mirrors the
-     * ORIGINAL Temper's weighted-random selection exactly: weight(a) is the dot product Temper
-     * computes (effective personality . plan annotation), and Temper's getWeightedRandomIdx is a
-     * roulette over those weights -- P(a) = weight(a) / sum. Using the same distribution here
-     * means the counterfactual-regret baseline is scored against what the agent actually plays,
-     * not a separate model of it.
-     *
-     * The personality is in [0,1] as upstream, but plan annotations are signed ([-1,1], the range
-     * the original already validates), so a dot product may be NEGATIVE -- the plan projects a
-     * persona opposed to who the agent is. Such a plan is out of character and gets zero
-     * probability, the Math.max below. Temper.getWeightedRandomIdx clamps identically, so the two
-     * agree; they did not before, and the gap silently corrupted the regret baseline.
-     */
+ * The mixed strategy the masked personality induces over the styles. Mirrors Temper's weighted
+ * random selection exactly -- weight(a) is the same dot product, P(a) = weight(a)/sum -- so the
+ * regret baseline is scored against what the agent actually plays. Annotations are signed, so a dot
+ * product may be negative: that plan is out of character and gets zero probability, which is what
+ * Temper.getWeightedRandomIdx does too.
+ */
     private double[] policy() {
         Map<String, Double> eff = effective();
         double[] w = new double[PlanCatalog.STYLES.length];
