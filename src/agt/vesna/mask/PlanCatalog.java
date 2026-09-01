@@ -18,9 +18,8 @@ import jason.NoValueException;
  */
 public final class PlanCatalog {
 
-    public static final String[] OCEAN = {
-        "o", "c", "e", "a", "n"
-    };
+    /** The five trait keys, in report order. Defined once in Mask. */
+    public static final String[] OCEAN = Mask.OCEAN;
 
     /** Uppercase initial, for the report. */
     public static String abbrev(String trait) {

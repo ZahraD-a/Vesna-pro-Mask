@@ -32,9 +32,9 @@ import pandas as pd
 
 RESULTS = Path("results/latest")
 # Outputs use the OCEAN initials -- five full trait names side by side is unreadable.
-TRAITS = ["O", "C", "E", "A", "N"]
-TRAIT_NAMES = {"O": "O  openness", "C": "C  conscientiousness", "E": "E  extraversion",
-               "A": "A  agreeableness", "N": "N  neuroticism"}
+TRAITS = ["o", "c", "e", "a", "n"]
+TRAIT_NAMES = {"o": "O  openness", "c": "C  conscientiousness", "e": "E  extraversion",
+               "a": "A  agreeableness", "n": "N  neuroticism"}
 
 
 def _save(fig, name, top=1.0):

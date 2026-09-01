@@ -66,7 +66,14 @@ public final class MaskLearner {
         System.out.println("[MASK] masks start at zero, one per circumstance entered");
 
         try {
+            // Clear every file this run will write. Two of them are appended to, so a stale one
+            // would silently continue a previous run; the rest are only written at the end, so a
+            // run that dies would leave last run's report looking like this run's.
             Files.createDirectories(OUT);
+            for (String f : new String[] { "episode_log.csv", "mask_trajectory.csv", "report.txt",
+                                           "learned_masks.csv", "reward_components.csv",
+                                           "style_shift.csv", "style_by_partner.csv" })
+                Files.deleteIfExists(OUT.resolve(f));
             Files.writeString(OUT.resolve("episode_log.csv"),
                 "episode,interactions,total_reward,mean_reward,entropy_work,entropy_home,entropy_conference\n");
             Files.writeString(OUT.resolve("mask_trajectory.csv"), "episode,mask,o,c,e,a,n,norm\n");
