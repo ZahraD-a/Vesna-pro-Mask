@@ -1,16 +1,81 @@
+// =====================================================================
+//  Four agents. Four files. Four bodies.
+//
+//  Every agent runs the original VEsNA-Pro vesna.VesnaAgent. What separates
+//  Alice from the others is pure configuration: she has use_masks on and a
+//  list of circumstances, so a MaskLearner is attached to her; the receivers
+//  do not, so they are plain Pro-AgentSpeak temper agents. There is no
+//  "primary" agent in the code.
+//
+//  Personalities are in [0,1] and plan annotations in [-1,1] -- EXACTLY the two
+//  ranges the ORIGINAL Temper validates (Temper.java line 67 and line 108
+//  respectively). Nothing about the temper mechanism is widened or rewritten.
+//
+//  What is new is only that we USE the signed half of the annotation range. The
+//  original framework always accepted it but never exercised it: every temper()
+//  annotation in the upstream alice.asl is non-negative, and both upstream
+//  configurations run strategy most_similar, so the weighted-random / dot-product
+//  path was never executed at all.
+//
+//  That matters because under the dot product the sign is what carries meaning.
+//  Andrea's Definition 3.1: -1 is the REVERSE of a propensity, not a small amount
+//  of it. A positive personality trait times a negative annotation is a NEGATIVE
+//  compatibility score, so a style opposed to the agent gets no probability --
+//  Alice's warm a(0.75) scores ignore at -1.39 and polite_decline at -0.39 and
+//  she cannot play either until a mask lowers her agreeableness. With all
+//  annotations positive, as upstream had them, every score was positive and all
+//  nine plans sat inside a 3.5x band, which left the mask nothing to grip.
+//
+//  Masks are deltas on the [0,1] core, clipped so the effective personality stays
+//  in [0,1] -- the range Temper accepts.
+// =====================================================================
+
 mas vesna {
 
-    agent alice:main.asl {
-        ag-class:   vesna.VesnaAgent
-        temper:     temper(openness(0.3), conscientiousness(-0.2), extraversion(0.1), agreeableness(0.5), neuroticism(-0.4), stress(0.0)[mood], satisfaction(0.0)[mood], social_energy(0.0)[mood])
-        strategy:   random
-        seed:       0
-        cfr_learning: true
-        goals:      start
-        use_masks:  true
-        mask_delta: 0.5
-        delta_threshold: 0.6
-        mask_contexts: "work,home,concert"
+    // -----------------------------------------------------------------
+    //  ALICE -- adaptive. Warm, a little disorganised, calm. Her masks all
+    //  start at zero, so on episode 0 she is simply herself everywhere;
+    //  whatever difference appears later was learned.
+    //
+    //  strategy: random   weighted-random over applicable plans (the original
+    //                     Temper roulette). most_similar is deterministic --
+    //                     nothing to learn from.
+    //  mask_delta: 0.5    a mask may shift a trait by at most this.
+    // -----------------------------------------------------------------
+    agent alice: alice.asl {
+        ag-class:            vesna.VesnaAgent
+        temper:              temper(o(0.55), c(0.35), e(0.50), a(0.75), n(0.30), stress(0.0)[mood], satisfaction(0.0)[mood], social_energy(0.0)[mood])
+        strategy:            random
+        use_masks:           true
+        mask_delta:          0.5
+        mask_learning_rate:  0.08
+        circumstances:       "work,home,conference"
+        max_episodes:        120
+        goals:               start
+    }
+
+    // -----------------------------------------------------------------
+    //  BOB, CAROL, DAVE -- real agents with real personalities. They do not
+    //  learn and wear no mask. They are the social environment that pushes
+    //  back, and they push back differently from one another.
+    // -----------------------------------------------------------------
+
+    agent bob: bob.asl {
+        ag-class:  vesna.VesnaAgent
+        temper:    temper(o(0.30), c(0.85), e(0.25), a(0.30), n(0.40))
+        strategy:  random
+    }
+
+    agent carol: carol.asl {
+        ag-class:  vesna.VesnaAgent
+        temper:    temper(o(0.55), c(0.45), e(0.75), a(0.85), n(0.25))
+        strategy:  random
+    }
+
+    agent dave: dave.asl {
+        ag-class:  vesna.VesnaAgent
+        temper:    temper(o(0.85), c(0.25), e(0.80), a(0.55), n(0.35))
+        strategy:  random
     }
 
 }

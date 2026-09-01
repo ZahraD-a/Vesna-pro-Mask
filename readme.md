@@ -38,7 +38,7 @@ In `vesna.jcm`:
 ```jason
 agent alice:main.asl {
     ag-class:       vesna.VesnaAgent
-    temper:         temper(openness(0.3), conscientiousness(-0.2), extraversion(0.1), agreeableness(0.5), neuroticism(-0.4), stress(0.0)[mood], satisfaction(0.0)[mood], social_energy(0.0)[mood])
+    temper:         temper(o(0.3), c(-0.2), e(0.1), a(0.5), n(-0.4), stress(0.0)[mood], satisfaction(0.0)[mood], social_energy(0.0)[mood])
     strategy:       random
     seed:           0
     cfr_learning:   true
@@ -58,7 +58,7 @@ agent alice:main.asl {
 Plans are annotated with OCEAN traits:
 
 ```jason
-@formal[temper([conscientiousness(0.8), extraversion(-0.6), agreeableness(0.2), openness(-0.4), neuroticism(-0.6)]), effects([satisfaction(+0.05)[mood]])]
+@formal[temper([c(0.8), e(-0.6), a(0.2), o(-0.4), n(-0.6)]), effects([satisfaction(+0.05)[mood]])]
 +!choose_response <- +strategy(formal).
 ```
  

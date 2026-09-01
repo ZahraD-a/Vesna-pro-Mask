@@ -40,19 +40,6 @@ task run (type: JavaExec, dependsOn: 'classes') {
     if (project.hasProperty('gamma'))  systemProperty 'gamma',  project.getProperty('gamma')
 }
 
-task runGame (type: JavaExec, dependsOn: 'classes') {
-    description 'runs the multi-agent self-play CFR social game'
-    group ' JaCaMo'
-    mainClass = 'vesna.SelfPlayCFR'
-    classpath sourceSets.main.runtimeClasspath
-    executable = javaToolchains.launcherFor {
-        languageVersion = JavaLanguageVersion.of(21)
-    }.get().executablePath
-    if (project.hasProperty('iters')) args project.getProperty('iters')
-    standardOutput = System.out
-    errorOutput = System.err
-}
-
 javadoc {
     destinationDir = file( "$buildDir/docs/javadoc" )
     options.memberLevel = JavadocMemberLevel.PRIVATE

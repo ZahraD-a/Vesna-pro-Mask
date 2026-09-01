@@ -1,0 +1,16 @@
+agent,context,masking_effort,social_sensitivity
+alice,work,0.0681,0.0803
+alice,home,0.2717,0.0473
+alice,concert,0.4470,0.0248
+bob,work,0.3776,0.0202
+bob,home,0.0826,0.0685
+bob,concert,0.0992,0.0798
+cara,work,0.1041,0.0497
+cara,home,0.1365,0.1428
+cara,concert,0.3592,0.0114
+dan,work,0.4244,0.0367
+dan,home,0.5604,0.3142
+dan,concert,0.6118,0.3173
+eve,work,0.3742,0.0997
+eve,home,0.6433,0.2464
+eve,concert,0.7756,0.0660
