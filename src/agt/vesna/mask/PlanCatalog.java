@@ -2,44 +2,23 @@ package vesna.mask;
 
 import java.util.*;
 
+import jason.asSyntax.*;
+import jason.pl.PlanLibrary;
+import jason.NoValueException;
+
 /**
- * PlanCatalog: the socially-different ways of achieving ONE goal.
+ * The nine socially different ways of achieving one goal, and the persona each projects.
  *
- * WHY NINE PLANS AND NOT THREE
- * ----------------------------
- * The goal is always the same: "a partner needs help with T". What varies is HOW the
- * agent goes about it. Andrea's point in the 17/07 meeting was that with three near
- * identical plans the choice is effectively forced, so nothing can be learned:
+ * This is a Java-side mirror of the temper() annotations in alice.asl. The duplication is
+ * deliberate and unavoidable: the counterfactual-regret update needs the trait vector of the plans
+ * that were NOT executed, and Jason does not hand those to Java at update time. validate() is
+ * called at startup to fail loudly if the two copies ever drift.
  *
- *     "you should define scenarios in which you achieve the same goal in different ways
- *      that are psychologically far apart ... otherwise it will be so deterministic that
- *      you will not learn anything"
- *
- * So every style below is simultaneously APPLICABLE (no restrictive plan context) and
- * psychologically distinct. The trait vector of each style mirrors, one-for-one, the
- * temper() annotation on the corresponding plan in alice.asl -- that annotation is what
- * Jason's option selection actually reads, this table is what the reward machine and the
- * mask update read. Temper.validateAgainstCatalog() checks at runtime that they agree.
- *
- * WHY THERE IS NO fit(circumstance, style) TABLE HERE
- * ---------------------------------------------------
- * An earlier version of this class carried one: a table stating that help_after_task is
- * worth +0.35 at work, joke_deflect -0.30, and so on. It has been removed, because nothing
- * in the 17/07 discussion puts such a table inside the learner. What is appropriate in a
- * circumstance is something the agent DISCOVERS from how the people around it react:
- *
- *     "you make some jokes while you are taking a coffee, it is your second day at work,
- *      and you see that nobody is laughing. Maybe this will put your trait telling jokes
- *      inside your mask work from 0 to minus 0.1."
- *
- * Nobody hands that agent a number saying jokes are worth -0.30 at work. It tells a joke and
- * the room stays silent. A table inside the reward function short-circuits exactly the thing
- * we are trying to observe: with it, half of every "learned" mask was really dictated by the
- * designer. Social norms now live in the receivers' belief bases (improper/2 in bob.asl,
- * carol.asl, dave.asl), where they are opaque to Alice and reach her only as cold replies.
- *
- * What remains here is what genuinely belongs to the acting agent: the persona each plan
- * projects, and what each plan costs to carry out.
+ * There is no fit(circumstance, style) table here. What is appropriate where is something the agent
+ * discovers from how the receivers react -- Andrea: "you make some jokes while you are taking a
+ * coffee, it is your second day at work, and you see that nobody is laughing." A table inside the
+ * reward function would short-circuit exactly the thing under study. Social norms live in the
+ * receivers' belief bases (improper/2), opaque to Alice.
  */
 public final class PlanCatalog {
 
@@ -47,19 +26,12 @@ public final class PlanCatalog {
         "o", "c", "e", "a", "n"
     };
 
-    /**
-     * Uppercase form for display. The traits are named o/c/e/a/n throughout -- in the .jcm
-     * temper literal, in every plan annotation, and in these maps -- because five full trait
-     * names on one line is unreadable, and because that is the notation Andrea used when he
-     * sketched the receiver plans: @p1[o(0.5), c(0.2)]. The initials are unambiguous, no two
-     * of the five sharing one. Reports print them uppercase; AgentSpeak functors must start
-     * lowercase, so the stored form is lowercase.
-     */
+    /** Uppercase initial for display. Traits are o/c/e/a/n throughout, as in the .jcm and the plans. */
     public static String abbrev(String trait) {
         return trait.isEmpty() ? "?" : trait.substring(0, 1).toUpperCase(Locale.ROOT);
     }
 
-    /** The nine ways of achieving !manage/2, in a fixed order (index = CFR action index). */
+    /** The nine styles in a fixed order; the index is the CFR action index. */
     public static final String[] STYLES = {
         "drop_everything",  // abandon my own task, help completely
         "help_after_task",  // help, but finish what I was doing first
@@ -114,6 +86,35 @@ public final class PlanCatalog {
     }
 
     private PlanCatalog() {}
+
+    /**
+     * Fail at startup if alice.asl's temper() annotations have drifted from the table above. The
+     * two copies exist because the CFR update needs the traits of plans that were not executed;
+     * this is what keeps them honest.
+     */
+    public static void validate(PlanLibrary pl) {
+        for (Plan p : pl.getPlans()) {
+            Pred label = p.getLabel();
+            if (label == null || !isStyle(label.getFunctor())) continue;
+            Literal annot = label.getAnnot("temper");
+            if (annot == null) continue;
+            String style = label.getFunctor();
+            for (Term t : (ListTerm) annot.getTerm(0)) {
+                Literal trait = (Literal) t;
+                double declared;
+                try {
+                    declared = ((NumberTerm) trait.getTerm(0)).solve();
+                } catch (NoValueException e) {
+                    throw new IllegalStateException("bad temper annotation on @" + style, e);
+                }
+                double expected = trait(style, trait.getFunctor());
+                if (Math.abs(declared - expected) > 1e-9)
+                    throw new IllegalStateException(String.format(
+                        "@%s in alice.asl declares %s(%.2f) but PlanCatalog says %.2f -- "
+                        + "the two must match", style, trait.getFunctor(), declared, expected));
+            }
+        }
+    }
 
     public static int index(String style) {
         for (int i = 0; i < STYLES.length; i++) if (STYLES[i].equals(style)) return i;

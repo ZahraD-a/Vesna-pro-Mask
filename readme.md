@@ -1,95 +1,69 @@
-# Vesna-Pro-Mask: Context-Dependent Personality Learning via CFR
+# Vesna-Pro-Masks
 
-**Vesna-Pro-Mask** extends [Vesna-Pro](https://github.com/VEsNA-ToolKit/vesna-pro) with a **Mask Wardrobe** architecture: agents maintain a frozen core identity and wear context-specific behavioral masks that evolve independently via Counterfactual Regret Minimization (CFR). inspired by novelty of italian writer [pirandello](https://en.wikipedia.org/wiki/One,_No_One_and_One_Hundred_Thousand). 
+Learned, circumstance-dependent personality masks on top of
+[VEsNA-Pro](https://github.com/VEsNA-ToolKit/vesna-pro). An agent keeps one fixed core
+identity and learns a behavioural mask per circumstance, so it acts differently at work
+than at home while remaining recognisably itself. The framing is Pirandello's
+*One, No One and One Hundred Thousand*.
 
-## Core Idea
+## Idea
 
-An agent has:
-- **Core Identity (A_core)**: Immutable personality traits (OCEAN model), set at design time
-- **Masks (M_κ)**: Per-context behavioral overlays, all starting at `[0,0,0,0,0]`, learned via CFR
-- **Effective Personality**: `A_eff = clip(A_core + M_active, -1.0, +1.0)`
+    A_eff = clip( A_core + M_circumstance , 0 , 1 )
 
-The same agent behaves differently depending on context:
-- At **work**: wears `mask_work` → learns professional behavior  
-- At **home**: wears `mask_home` → learns relaxed behavior  
-- At **concert**: wears `mask_concert` → learns expressive behavior  
+`A_core` (OCEAN, set in `vesna.jcm`) never changes. Each `M_circumstance` starts at zero
+-- on episode 0 the agent is simply itself everywhere -- and is moved by counterfactual
+regret minimisation from the outcomes other agents actually return. Only the masks learn.
 
-Each context tracks its **own reward history**, so CFR learns different values per mask.
-
- 
-
-## Mask Selection via Prolog Rules
-
-Mask wearability is defined in `mask_rules.asl` using Prolog-style rules:
-
-```prolog
-mask_for( Ctx, MaskName ) :- Ctx == work & MaskName = mask_work.
-mask_for( Ctx, MaskName ) :- Ctx == home & MaskName = mask_home.
-mask_for( Ctx, MaskName ) :- Ctx == concert & MaskName = mask_concert.
-mask_for( Ctx, MaskName ) :- MaskName = mask_default.
-```
-
-The agent queries beliefs to select the active mask before each decision.
-
-## Configuration
-
-In `vesna.jcm`:
-
-```jason
-agent alice:main.asl {
-    ag-class:       vesna.VesnaAgent
-    temper:         temper(o(0.3), c(-0.2), e(0.1), a(0.5), n(-0.4), stress(0.0)[mood], satisfaction(0.0)[mood], social_energy(0.0)[mood])
-    strategy:       random
-    seed:           0
-    cfr_learning:   true
-    goals:          start
-    use_masks:      true
-    mask_delta:     0.5
-    mask_contexts:  "work,home,concert"
-}
-```
-
-- `use_masks`: Enable mask wardrobe mode
-- `mask_delta`: δ — maximum absolute value per mask trait (bounds identity drift)
-- `mask_contexts`: Comma-separated context names
-
-## Plan Annotation
-
-Plans are annotated with OCEAN traits:
-
-```jason
-@formal[temper([c(0.8), e(-0.6), a(0.2), o(-0.4), n(-0.6)]), effects([satisfaction(+0.05)[mood]])]
-+!choose_response <- +strategy(formal).
-```
- 
- 
 ## Running
 
-```bash
-# Build and run
-./gradlew run
+    ./gradlew run
 
-# Or on Windows PowerShell
-.\gradlew.bat run
-```
+Agent output goes to Jason's MAS console window, not the terminal (see
+`logging.properties`). Results are written to `results/latest/`; the end-of-run summary
+is `results/latest/report.txt`. Plots: `python scripts/plot_results.py`.
 
-The agent runs 50 episodes, interacting in 3 contexts per episode. Masks start at `[0,0,0,0,0]` and learn through CFR.
+## The agents
 
-## Output
+Four agents, each in its own file. Alice learns; Bob, Carol and Dave do not. They are the
+social environment that pushes back, and they disagree with each other, so there is no
+oracle anywhere in the system.
 
-After training, the wardrobe shows diverged masks:
+| file | role |
+|---|---|
+| `src/agt/alice.asl` | the learning agent: life cycle, nine ways to help, mask selection |
+| `src/agt/receiver.asl` | shared receiver behaviour |
+| `src/agt/bob.asl`, `carol.asl`, `dave.asl` | per-agent taste (`likes_style`) and norms (`improper`) |
+| `src/agt/mask_rules.asl` | which mask is wearable in which circumstance |
 
-```
-Mask[mask_work]    ||M||=0.062 {C=+0.042, E=-0.029, O=-0.031}  ← professional
-Mask[mask_home]    ||M||=0.065 {E=+0.056, C=-0.027, O=+0.013}  ← relaxed
-Mask[mask_concert] ||M||=0.107 {E=+0.087, O=+0.040, C=-0.045}  ← expressive
-```
+Experiment settings -- episodes, rounds, circumstances, verbosity -- are in `vesna.jcm`
+under `beliefs:`, never in the `.asl`. A different experiment means a different `.jcm`.
 
-Same agent, three learned identities.
+## Code layout
 
-## References
+    src/agt/vesna/        unchanged from VEsNA-Pro: Temper, wrappers, VesnaAgent
+    src/agt/vesna/mask/   this project: Mask, MaskLearner, PlanCatalog, RewardMachine
+    src/agt/vesna/via/    internal actions bridging AgentSpeak to the learner
 
-- [Jason BDI Agent Platform](https://github.com/jason-lang/jason)
-- [Vesna-Pro](https://github.com/VEsNA-ToolKit/vesna-pro)
-- [pirandello](https://en.wikipedia.org/wiki/One,_No_One_and_One_Hundred_Thousand)
-- Gatti et al. (2026), Pro-AgentSpeak(L), AAMAS 2026
+### What was changed in the original
+
+`Temper.java` differs from upstream in exactly two places:
+
+1. **Added** `getPersonality()` / `useEffective()` -- the mask seam. Upstream writes
+   `personality` only in its constructor; this is the one write path that did not exist.
+2. **Fixed** `getWeightedRandomIdx`. It accumulated `double` weights into an `int`, and its
+   interval scan could not represent a negative weight. Neither bug is reachable upstream
+   -- both its configurations use `most_similar`, and its plan annotations are all
+   non-negative -- so the method had never run.
+
+Everything else, including `OptionWrapper`, `IntentionWrapper` and `TemperSelectable`, is
+byte-identical to the original.
+
+Personalities stay in `[0,1]` and plan annotations in `[-1,1]`: the two ranges the original
+already validates. Using the signed half of the annotation range is what lets a style score
+*negative* against the core, so a plan opposed to who the agent is gets no probability at
+all until a mask brings it into reach.
+
+## Results
+
+See `results/README.md` for the file-by-file map and the range ablation kept in
+`results/archive/`.

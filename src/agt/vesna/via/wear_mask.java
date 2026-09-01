@@ -3,6 +3,7 @@ package vesna.via;
 import jason.asSemantics.*;
 import jason.asSyntax.*;
 import vesna.mask.MaskLearner;
+import vesna.mask.PlanCatalog;
 import vesna.VesnaAgent;
 
 /**
@@ -16,11 +17,17 @@ import vesna.VesnaAgent;
  */
 public class wear_mask extends DefaultInternalAction {
 
+    private static boolean validated = false;
+
     @Override
     public Object execute(TransitionSystem ts, Unifier un, Term[] args) throws Exception {
         if (args.length < 1) return false;
         MaskLearner masks = ((VesnaAgent) ts.getAg()).getMasks();
         if (masks == null) return true;
+        if (!validated) {                       // plans are parsed by now, unlike at initAg()
+            PlanCatalog.validate(ts.getAg().getPL());
+            validated = true;
+        }
         masks.wear(args[0].toString());
         return true;
     }
