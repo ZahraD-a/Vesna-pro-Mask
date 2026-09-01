@@ -48,7 +48,6 @@ public final class MaskLearner {
     private final Map<String, Double> core;      // A_core, read once from Temper (o/c/e/a/n)
     private final double maskDelta;
     private final double learningRate;
-    private final int    maxEpisodes;
 
     private final Map<String, Mask> wardrobe = new LinkedHashMap<>();  // circumstance -> mask
     private final Mask defaultMask;
@@ -70,21 +69,18 @@ public final class MaskLearner {
 
     private static final Path OUT = Path.of("results", "latest");
 
-    public MaskLearner(Temper temper, List<String> circumstances,
-                       double maskDelta, double learningRate, int maxEpisodes) {
+    public MaskLearner(Temper temper, double maskDelta, double learningRate) {
         this.temper        = temper;
         this.core          = temper.getPersonality();   // the one read of the core
         this.maskDelta     = maskDelta;
         this.learningRate  = learningRate;
-        this.maxEpisodes   = maxEpisodes;
 
         this.defaultMask = new Mask("mask_default", "default", maskDelta);
         wardrobe.put("default", defaultMask);
-        for (String c : circumstances) wardrobe.put(c, new Mask("mask_" + c, c, maskDelta));
         this.activeMask = defaultMask;
 
         System.out.println("[MASK] core personality " + fmt(core));
-        System.out.println("[MASK] wardrobe " + wardrobe.keySet() + " -- every mask starts at zero");
+        System.out.println("[MASK] masks start at zero, one per circumstance entered");
 
         try {
             Files.createDirectories(OUT);
@@ -107,7 +103,7 @@ public final class MaskLearner {
      */
     public void wear(String maskName) {
         String circ = maskName.startsWith("mask_") ? maskName.substring(5) : maskName;
-        activeMask = wardrobe.getOrDefault(circ, defaultMask);
+        activeMask = wardrobe.computeIfAbsent(circ, c -> new Mask("mask_" + c, c, maskDelta));
         temper.useEffective(effective());
     }
 
@@ -250,7 +246,7 @@ public final class MaskLearner {
         episodeInteractions = 0;
 
         if (episode == 1 || episode % 20 == 0) {
-            System.out.printf("[MASK] episode %d/%d%n", episode, maxEpisodes);
+            System.out.printf("[MASK] episode %d%n", episode);
             for (Mask m : wardrobe.values())
                 if (m.norm() > 1e-6) System.out.printf("    %-16s ||M||=%.3f%n", m.name(), m.norm());
         }

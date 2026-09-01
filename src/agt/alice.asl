@@ -22,24 +22,12 @@
 //  BELIEFS
 // ---------------------------------------------------------------------
 
+// Alice's own state. Everything else she reasons over -- circumstances,
+// rounds_per_partner, max_episodes, dialogue_episodes, verbose -- is experiment
+// configuration and is declared in vesna.jcm, so a different run means a
+// different .jcm, never an edit to this file.
 episode(0).
 next_id(0).
-
-// Print the actual message traffic for the first few episodes so the exchange can
-// be watched. 120 episodes x 27 interactions is far too much to read, so after
-// dialogue_episodes the agents are told to be quiet and the run goes silent.
-verbose.
-dialogue_episodes(2).
-
-// The circumstances Alice moves through. Each has a mask (mask_rules.asl).
-circumstances([work, home, conference]).
-
-// How many times she comes back to each partner inside one circumstance.
-// Three rounds x three partners x three circumstances = 27 decisions per episode,
-// which is enough for the per-circumstance style mix to be a usable statistic.
-rounds_per_partner(3).
-
-max_episodes(120).
 
 // ---------------------------------------------------------------------
 //  LIFE CYCLE

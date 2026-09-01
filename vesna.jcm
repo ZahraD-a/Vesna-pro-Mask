@@ -49,8 +49,11 @@ mas vesna {
         use_masks:           true
         mask_delta:          0.5
         mask_learning_rate:  0.08
-        circumstances:       "work,home,conference"
-        max_episodes:        120
+        beliefs:             circumstances([work, home, conference]),
+                             rounds_per_partner(3),
+                             max_episodes(120),
+                             dialogue_episodes(2),
+                             verbose
         goals:               start
     }
 
