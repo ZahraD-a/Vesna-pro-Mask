@@ -1,48 +1,43 @@
 {
-  "personality": {
-    "conscientiousness": -0.2,
-    "openness": 0.3,
-    "neuroticism": -0.4,
-    "extraversion": 0.1,
-    "agreeableness": 0.5
-  },
-  "mood": {
-    "stress": 0,
-    "satisfaction": 1,
-    "social_energy": 1
+  "core_personality": {
+    "a": 0.5,
+    "c": -0.2,
+    "e": 0.1,
+    "n": -0.4,
+    "o": 0.3
   },
   "masks": {
-    "mask_concert": {
-      "conscientiousness": -0.5,
-      "openness": 0.5,
-      "neuroticism": 0.1,
-      "extraversion": 0.5,
-      "agreeableness": 0.2,
-      "norm": 0.8944
+    "mask_conference": {
+      "a": 0.086,
+      "c": 0.5,
+      "e": 0.478,
+      "n": 0.129,
+      "o": 0.35,
+      "norm": 0.79
     },
     "mask_home": {
-      "conscientiousness": -0.45,
-      "openness": 0.2,
-      "neuroticism": 0.3,
-      "extraversion": 0.5,
-      "agreeableness": 0.4,
-      "norm": 0.8614
+      "a": 0.014,
+      "c": 0.226,
+      "e": 0.5,
+      "n": 0.129,
+      "o": 0.268,
+      "norm": 0.624
     },
     "mask_default": {
-      "conscientiousness": -0.5,
-      "openness": 0.5,
-      "neuroticism": 0.1,
-      "extraversion": 0.5,
-      "agreeableness": 0.2,
-      "norm": 0.8944
+      "a": 0,
+      "c": 0,
+      "e": 0,
+      "n": 0,
+      "o": 0,
+      "norm": 0
     },
     "mask_work": {
-      "conscientiousness": 0.5,
-      "openness": -0.4,
-      "neuroticism": -0.1,
-      "extraversion": -0.5,
-      "agreeableness": 0,
-      "norm": 0.8184
+      "a": -0.168,
+      "c": 0.5,
+      "e": 0.096,
+      "n": 0.256,
+      "o": 0.051,
+      "norm": 0.596
     }
   }
 }

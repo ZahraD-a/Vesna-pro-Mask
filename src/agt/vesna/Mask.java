@@ -1,158 +1,54 @@
 package vesna;
 
-import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
- * MASK = behavioral overlay on top of the agent's core identity.
+ * A mask is a vector of OCEAN deltas, one per trait, bound to a circumstance.
  *
- * HOW IT WORKS:
- *   Core identity (A_core) = WHO YOU ARE (set at design time, never changes)
- *   Mask (M)               = HOW YOU ADAPT in a specific context (learned via CFR)
+ *     A_eff = clip( A_core + M , 0 , 1 )
  *
- *   Effective personality = A_eff = clip(A_core + M, -1.0, +1.0)
+ * It starts at zero -- on episode 0 the agent is simply itself in every circumstance -- and is
+ * the ONLY thing the framework learns. The core personality is never touched. Each delta is
+ * clipped to [-delta, +delta] so a mask can bend the agent but not replace it: a reserved person
+ * among trusted friends moves toward the middle, never to the maximum. This is the bounded,
+ * Pirandellian reading agreed in the meeting -- one stable identity, many learned masks.
  *
- * EXAMPLE:
- *   A_core = [O=0.3, C=-0.2, E=0.1, A=0.5, N=-0.4]  (your true self)
- *   M_work = [O=0.1, C=0.3,  E=0.0, A=0.2, N=-0.3]  (learned adaptation at work)
- *   A_eff  = [O=0.4, C=0.1,  E=0.1, A=0.7, N=-0.7]  (how you behave at work)
- *
- * DESIGN-TIME DECISION:
- *   Each mask is created at design time for a specific context.
- *   All masks START at [0,0,0,0,0] (no modification to core).
- *   Through CFR learning, masks EVOLVE to adapt the agent per context.
- *
- * DELTA (δ):
- *   Each mask trait is clipped to [-δ, +δ] to prevent extreme drift.
- *   When ||M|| (L2 norm) exceeds a threshold, the mask has diverged
- *   significantly from the agent's core — this is reported for analysis.
+ * OCEAN is stored with the single-letter keys o/c/e/a/n, the notation Andrea used in his own
+ * sketch and the notation the .jcm and plan annotations use.
  */
-public class Mask {
+public final class Mask {
 
-    // OCEAN trait names
-    public static final String[] OCEAN = {
-        "openness", "conscientiousness", "extraversion", "agreeableness", "neuroticism"
-    };
+    public static final String[] OCEAN = { "o", "c", "e", "a", "n" };
 
-    // Fields
-    private final String name;              // e.g., "mask_work"
-    private final String context;           // e.g., "work" (the situation this mask is for)
-    private Map<String, Double> traits;     // OCEAN delta values (start at 0)
-    private final double deltaClip;         // max absolute value per trait (δ)
-    private final int creationEpisode;      // episode when mask was created
+    private final String name;          // e.g. "mask_work"
+    private final String circumstance;  // e.g. "work"
+    private final double clip;          // per-trait bound on |delta|
+    private final Map<String, Double> delta = new LinkedHashMap<>();
 
-    // Constructor
-
-    /**
-     * Create a new mask for a specific context.
-     * All traits START at 0.0 (no modification to core identity).
-     *
-     * @param name            unique ID, e.g., "mask_work"
-     * @param context         situation name, e.g., "work"
-     * @param deltaClip       δ: max absolute trait value (e.g., 0.5)
-     * @param creationEpisode episode when this mask was created
-     */
-    public Mask(String name, String context,
-                double deltaClip, int creationEpisode) {
+    public Mask(String name, String circumstance, double clip) {
         this.name = name;
-        this.context = context;
-        this.deltaClip = deltaClip;
-        this.creationEpisode = creationEpisode;
-
-        // ALL MASKS START AT ZERO — no modification to core identity
-        this.traits = new HashMap<>();
-        for (String trait : OCEAN) {
-            this.traits.put(trait, 0.0);
-        }
+        this.circumstance = circumstance;
+        this.clip = clip;
+        for (String t : OCEAN) delta.put(t, 0.0);
     }
 
-    // Trait Manipulation
+    public String name()          { return name; }
+    public String circumstance()  { return circumstance; }
+    public double clip()          { return clip; }
+    public double get(String t)   { return delta.getOrDefault(t, 0.0); }
 
-    /**
-     * Set a trait to a specific value (for initial configuration).
-     * Clips to [-δ, +δ].
-     */
-    public void setTrait(String trait, double value) {
-        traits.put(trait, Math.max(-deltaClip, Math.min(deltaClip, value)));
+    /** Move a delta toward a target by an exponential step, staying within [-clip, +clip]. */
+    public void moveToward(String t, double target, double rate) {
+        double bounded = Math.max(-clip, Math.min(clip, target));
+        double next = (1.0 - rate) * get(t) + rate * bounded;
+        delta.put(t, Math.max(-clip, Math.min(clip, next)));
     }
 
-    /**
-     * Update a single trait, clipping to [-δ, +δ].
-     * This is called by the CFR update loop.
-     */
-    public void updateTrait(String trait, double delta) {
-        double current = traits.getOrDefault(trait, 0.0);
-        double updated = Math.max(-deltaClip, Math.min(deltaClip, current + delta));
-        traits.put(trait, updated);
-    }
-
-    /** Set a trait to an absolute value, clipped to [-deltaClip, +deltaClip]. */
-    public void setTraitClipped(String trait, double value) {
-        traits.put(trait, Math.max(-deltaClip, Math.min(deltaClip, value)));
-    }
-
-    /** Get current delta value for a trait. */
-    public double getTrait(String trait) {
-        return traits.getOrDefault(trait, 0.0);
-    }
-
-    /** Get all traits as a map. */
-    public Map<String, Double> getTraits() {
-        return new HashMap<>(traits);
-    }
-
-    /**
-     * Compute L2 norm of this mask's trait vector.
-     * ||M|| = sqrt(Σ M_trait²)
-     */
+    /** L2 norm: how far this mask has moved from the identity. */
     public double norm() {
-        double sum = 0.0;
-        for (double v : traits.values()) {
-            sum += v * v;
-        }
-        return Math.sqrt(sum);
-    }
-
-    /**
-     * Has this mask diverged significantly from zero?
-     * Used for analysis and sharing decisions.
-     */
-    public boolean hasSignificantAdaptation(double threshold) {
-        return norm() >= threshold;
-    }
-
-    /** Reset all traits to zero (fresh start). */
-    public void reset() {
-        for (String trait : OCEAN) {
-            traits.put(trait, 0.0);
-        }
-    }
-
-    /** Deep copy. */
-    public Mask copy() {
-        Mask copy = new Mask(name, context, deltaClip, creationEpisode);
-        copy.traits = new HashMap<>(this.traits);
-        return copy;
-    }
-
-    // Getters
-
-    public String getName()             { return name; }
-    public String getContext()          { return context; }
-    public double getDeltaClip()        { return deltaClip; }
-    public int getCreationEpisode()     { return creationEpisode; }
-
-    @Override
-    public String toString() {
-        StringBuilder sb = new StringBuilder();
-        sb.append(String.format("Mask[%s] ctx=%s ||M||=%.4f {", name, context, norm()));
-        boolean first = true;
-        for (String trait : OCEAN) {
-            if (!first) sb.append(", ");
-            sb.append(String.format("%s=%+.3f", trait, traits.get(trait)));
-            first = false;
-        }
-        sb.append("}");
-        return sb.toString();
+        double s = 0.0;
+        for (double v : delta.values()) s += v * v;
+        return Math.sqrt(s);
     }
 }

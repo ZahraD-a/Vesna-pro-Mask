@@ -1,0 +1,70 @@
+
+=================== WHAT THE MASKS LEARNED ===================
+120 episodes. Every mask started at zero: on episode 0 the agent was
+simply herself in every circumstance. All of the following was learned.
+
+                           O       C       E       A       N      ||M||
+    core identity      +0.55   +0.35   +0.50   +0.75   +0.30        --
+                    O openness   C conscientiousness   E extraversion   A agreeableness   N neuroticism
+    mask_default       +0.00   +0.00   +0.00   +0.00   +0.00     0.000
+    mask_work          -0.39   +0.09   -0.48   -0.50   -0.35     0.871
+    mask_home          -0.34   -0.35   -0.28   -0.50   -0.37     0.838
+    mask_conference    -0.24   -0.09   -0.31   -0.50   -0.41     0.763
+
+    who she becomes, trait by trait (core -> core + mask):
+    mask_default     unchanged (circumstance never visited)
+    mask_work        O 0.55->0.16  C 0.35->0.44  E 0.50->0.02  A 0.75->0.25  N 0.30->0.00 
+                     strongest shift: A -0.50
+    mask_home        O 0.55->0.21  C 0.35->0.00  E 0.50->0.22  A 0.75->0.25  N 0.30->0.00 
+                     strongest shift: A -0.50
+    mask_conference  O 0.55->0.31  C 0.35->0.26  E 0.50->0.19  A 0.75->0.25  N 0.30->0.00 
+                     strongest shift: A -0.50
+
+--- where the learning signal came from (mean per interaction) ---
+    Only the outcome term carries information the agent did not already have;
+    authenticity and cost it could compute for every style without acting.
+    work         outcome -0.646   authenticity -0.108   cost -0.154   |  + 17%  0 40%  - 43%
+    home         outcome -0.424   authenticity -0.105   cost -0.173   |  + 19%  0 45%  - 36%
+    conference   outcome -0.322   authenticity -0.104   cost -0.164   |  + 24%  0 40%  - 36%
+
+--- did the mask change what she actually does? ---
+    share of each plan, first 24 episodes -> last 24
+
+    circumstance: work
+        drop_everything   13.0%  ->    0.5%   -12.5
+        help_after_task   21.3%  ->   29.2%    +7.9
+        pair_up           20.4%  ->   19.4%    -0.9
+        teach             25.0%  ->   27.8%    +2.8
+        quick_tip          9.3%  ->    8.3%    -0.9
+        delegate           6.9%  ->    9.7%    +2.8
+        joke_deflect       4.2%  ->    0.0%    -4.2
+        polite_decline     0.0%  ->    5.1%    +5.1
+
+    circumstance: home
+        drop_everything   16.2%  ->   24.1%    +7.9
+        help_after_task    7.4%  ->    3.7%    -3.7
+        pair_up           26.9%  ->   27.3%    +0.5
+        teach             17.6%  ->   16.7%    -0.9
+        quick_tip         14.4%  ->   10.2%    -4.2
+        delegate           1.4%  ->    0.0%    -1.4
+        joke_deflect      16.2%  ->   18.1%    +1.9
+
+    circumstance: conference
+        drop_everything   10.6%  ->    8.3%    -2.3
+        help_after_task   14.4%  ->   14.8%    +0.5
+        pair_up           30.6%  ->   25.9%    -4.6
+        teach             19.4%  ->   21.8%    +2.3
+        quick_tip         14.4%  ->   11.1%    -3.2
+        delegate           2.8%  ->    3.7%    +0.9
+        joke_deflect       7.9%  ->   14.4%    +6.5
+
+--- transfer: the mask is a property of the circumstance, not of the partner ---
+    One mask is learned per circumstance and indexed by nothing else, so the rows
+    below -- her style mix with each partner -- should look ALIKE. The work-mask
+    learned while dealing with Bob transfers unchanged to Carol, Dave and any new
+    coworker: mask count does not grow with the number of agents.
+    carol    drop_everything=13% help_after_task=13% pair_up=25% teach=22% quick_tip=12% joke_deflect=11%
+    dave     drop_everything=12% help_after_task=14% pair_up=26% teach=22% quick_tip=10% joke_deflect=11%
+    bob      drop_everything=11% help_after_task=16% pair_up=24% teach=23% quick_tip=11% joke_deflect=12%
+==============================================================
+
