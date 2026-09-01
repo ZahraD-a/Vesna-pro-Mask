@@ -1,17 +1,14 @@
 // Alice is the only agent here that learns.
 //
-// Bob, Carol and Dave are separate agents with their own files. Alice can only
-// send them messages and read what they reply. She never decides for them, and
-// nothing in this file pretends to be them.
+// Bob, Carol and Dave are separate agents with their own files. Alice can only send
+// them messages and read the replies; nothing in this file stands in for them.
 //
-// She counts episodes herself with the belief episode(N). What an episode means
-// for learning happens in MaskLearner, outside her reasoning.
+// She counts episodes with the belief episode(N). What an episode means for
+// learning happens in MaskLearner.
 
 { include("mask_rules.asl") }
 
-// Alice's own state. The settings she reads -- circumstances, rounds_per_partner,
-// max_episodes, dialogue_episodes, verbose -- are experiment settings and live in
-// vesna.jcm, not here.
+// Alice's own state. Experiment settings live in vesna.jcm.
 episode(0).
 next_id(0).
 
@@ -49,17 +46,14 @@ next_id(0).
         !meet_everyone;
         !visit_all(Rest).
 
-// Two steps: ask which masks fit this circumstance, then pick one. wearable/1 can
-// return several, and .nth(0) takes the most specific. Both steps stay here in the
-// agent so they can be changed without touching Java; wear_mask just passes the
-// chosen name to the learner.
+// Ask which masks fit, then pick one: wearable/1 can return several, .nth(0) takes
+// the most specific. wear_mask only passes the chosen name to the learner.
 +!wear_mask(C)
     <-  .findall(M, wearable(M), Wearable);
         .nth(0, Wearable, Chosen);
         vesna.via.wear_mask(Chosen).
 
-// Partners are looked up while running, so adding a fifth agent to vesna.jcm
-// needs no change here.
+// Partners are looked up at run time, so adding a fifth agent needs no change here.
 +!meet_everyone
     :   rounds_per_partner(K)
     <-  .my_name(Me);
@@ -88,22 +82,18 @@ next_id(0).
     <-  !manage(Ag, T).
 +!on_reply(_, _).                   // nothing needed, or no answer
 
-// Nine different ways to do the same thing: help a partner. None of them has a
-// context condition, so all nine are always possible. That is on purpose. If only
-// one plan fitted at a time the choice would be forced and there would be nothing
-// to learn.
+// Nine ways to do the same thing. None has a context condition, so all nine are
+// always applicable: if only one fitted at a time the choice would be forced and
+// there would be nothing to learn.
 //
-// temper() describes the kind of person each plan acts like, using the five OCEAN
-// traits from -1 to +1. The sign matters: -1 means the opposite of the trait, not
-// a small amount of it. So ignore has a(-0.90), meaning actively cold.
+// temper() is the personality each plan projects, five OCEAN traits from -1 to +1,
+// where -1 is the opposite of a trait rather than a small amount of it.
 //
-// A plan is scored by multiplying the agent's traits by the plan's traits and
-// adding up. Alice is warm (a(0.75)), so ignore scores -1.39 -- a negative score,
-// and negative-scoring plans are never chosen. She simply cannot ignore anyone
-// until a mask makes her less agreeable. That is the mask doing its job.
+// Plans are scored by multiplying the agent traits by the plan traits and summing.
+// Alice is warm (a(0.75)), so ignore scores -1.39, and negative-scoring plans are
+// never picked: she cannot ignore anyone until a mask lowers her agreeableness.
 //
-// These numbers must stay equal to the ones in PlanCatalog.java. If they ever
-// differ, PlanCatalog.validate() stops the run.
+// These numbers must match PlanCatalog.java, which validate() checks at startup.
 
 @drop_everything[temper([o(0.20), c(-0.50), e(0.40), a(0.90), n(0.10)]),
                  effects([social_energy(-0.10)[mood], satisfaction(0.10)[mood]])]
@@ -143,13 +133,11 @@ next_id(0).
 // ---------------------------------------------------------------------
 //
 //  The identifier makes each exchange unique. Without it a second
-// The id makes every exchange unique. Without it, the same reply twice would
-// already be a belief Alice holds, so nothing would happen and the exchange would
-// disappear without trace.
+// The id keeps each exchange distinct. Without it a repeated reply would already be
+// a held belief, no event would fire, and the exchange would vanish.
 
-// The circumstance is sent along with the offer, because the partner reacts to
-// the whole situation and not just the act. Alice is never told why they reacted
-// that way; she only gets the reply.
+// The circumstance is sent with the offer: the partner reacts to the situation, not
+// the act alone. Alice is never told why, only what.
 
 +!offer(Ag, T, Style)
     :   next_id(I) & circumstance(C)
@@ -160,16 +148,15 @@ next_id(0).
         .send(Ag, tell, offer(T, Style, C, I));
         .wait(20).
 
-// The only point where feedback from outside arrives. The reply came from another
-// agent picking its own reaction with its own personality.
+// The only point where outside feedback arrives, chosen by another agent with its
+// own personality.
 +outcome(I, Result)[source(Ag)]
     <-  .abolish(outcome(I, _));
         !say("   <- ", Ag, " : ", Result);
         vesna.via.record_outcome(Ag, Result).
 
-// Printing. Two plans each: one that prints while verbose is believed, and one
-// that does nothing. Neither has a temper() annotation, so printing can never
-// affect which plan gets chosen.
+// Printing. Two plans each: one while verbose is believed, one that does nothing.
+// No temper() annotation, so printing cannot affect plan choice.
 
 +!say(A, B, C) : verbose <- .print(A, B, C).
 +!say(_, _, _).
@@ -180,8 +167,8 @@ next_id(0).
 +!announce(E) : verbose <- .print("======== episode ", E, " ========").
 +!announce(_).
 
-// Alice cannot change what the others believe. She sends a message and each of
-// them decides for itself what to do with it.
+// Alice cannot change what the others believe; she sends a message and each decides
+// what to do with it.
 +!maybe_hush(E)
     :   dialogue_episodes(D) & E >= D & verbose
     <-  .print("---- dialogue trace off after ", D, " episodes; ",

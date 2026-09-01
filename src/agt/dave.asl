@@ -1,15 +1,13 @@
-// Dave is light and playful. He likes help that stays quick and does not get
-// heavy.
+// Light and playful. Likes help that stays quick.
 //
 // He is the one who disagrees with the other two: he does not mind being taught
-// something at home, where Bob and Carol both do. That disagreement matters,
-// because it means nobody in this system holds the single correct answer. Alice
-// has to work out what usually goes down well, from three people who do not agree.
+// something at home, where Bob and Carol both do. That matters, because it means no
+// single agent holds the correct answer and Alice has to average over three who
+// disagree.
 //
-// KNOWN LIMITATION: he was also meant to be fine with a joke at work, but
-// receiver.asl marks joke_deflect as out of place at work for everyone, and that
-// shared rule applies to him too. So that particular difference does not currently
-// exist in the code.
+// Known limitation: he was also meant to accept a joke at work, but receiver.asl
+// marks joke_deflect out of place at work for every receiver, and he inherits it.
+// That difference does not currently exist in the code.
 
 needs_help(slides).
 

@@ -3,39 +3,32 @@ package vesna.mask;
 import java.util.*;
 
 /**
- * Turns "what did I do, to whom, where, and how did it go" into a single number, and also estimates
- * what the plans that were not chosen would have been worth.
+ * Scores a choice:
  *
  *     reward = W_OUTCOME * how it was received
- *            - W_AUTH    * how unlike me the plan was
- *            - W_COST    * how much effort it took
+ *            - W_AUTH    * distance from the agent's real personality
+ *            - W_COST    * effort
  *
- * Only the first part needs the plan to have actually been run. For the plans not chosen it is
- * replaced by the average of how that partner has reacted to that style here before, starting at
- * zero when there is nothing to go on. The other two parts depend only on the agent and the plan,
- * so they can be worked out for every plan at any time.
+ * Only the first term needs the plan to have been run. For the plans not chosen it uses the average
+ * of past replies to that style, in that circumstance, from that partner, which is what lets the
+ * regret update score them too.
  *
- * "How unlike me" is measured against the real personality, never the masked one. Measured against
- * the mask, a mask would always look right to itself. Measured against the real personality it
- * pulls against wanting approval, and the learned mask is the compromise between the two.
+ * The distance is measured against the real personality, not the masked one. Against the mask, a
+ * mask would always look right to itself.
  */
 public final class RewardMachine {
 
     /**
- * How it was received is the only part that changes from one circumstance to another. The other two
- * are the same everywhere, so unless this part is the strongest every mask drifts to the same
- * answer and the circumstance stops making any difference. At W_OUTCOME = 1.0 all three masks came
- * out within 0.05 of each other.
+ * The outcome term is the only one that varies by circumstance, so it has to outweigh the other two
+ * or every mask converges on the same answer. At W_OUTCOME = 1.0 all three ended within 0.05.
  */
     public static final double W_OUTCOME = 2.50;
     public static final double W_AUTH    = 0.60;
     public static final double W_COST    = 0.30;
 
     /**
- * Puts a number on each possible reply. The words are kept general on purpose: a person might reply
- * accepted / tolerated / rejected, while a sensor might report goal_achieved / delayed / failed.
- * Only where the reply comes from changes, never this class. An unrecognised word scores zero
- * instead of causing an error, so a new one can be added without recompiling.
+ * Score per reply. The words are generic so a sensor could report goal_achieved / delayed / failed
+ * into the same table. Unknown words score zero rather than failing.
  */
     private static final Map<String, Double> OUTCOME = Map.ofEntries(
         Map.entry("accepted",      1.0),   // social: the help was welcomed
@@ -55,10 +48,7 @@ public final class RewardMachine {
     }
 
     /**
- * How far a style is from who the agent really is: the average gap across the five traits, scaled
- * so that 0 means exactly myself and 1 means my complete opposite. The personality runs 0 to 1 and
- * a plan runs -1 to 1, so one trait can be up to 2 apart; dividing by 2 keeps W_AUTH meaning what
- * it did before.
+ * Average gap between a style and the agent's real personality, scaled to 0..1.
  */
     private final Map<String, double[]> history = new HashMap<>();  // [sum, count]
 
@@ -78,16 +68,7 @@ public final class RewardMachine {
         return (acc == null || acc[1] == 0.0) ? 0.0 : acc[0] / acc[1];
     }
 
-    /**
-     * Mean absolute distance between the persona a style projects and who the agent really is,
-     * normalised to [0,1].
-     *
-     * The core is in [0,1] but a plan's projected persona is in [-1,1], so a per-trait distance
-     * runs to 2 and the raw mean would too -- silently doubling this term's weight against
-     * W_OUTCOME and W_COST once the annotations became signed. Dividing by the span keeps 0 =
-     * exactly myself and 1 = my precise opposite, so W_AUTH keeps the calibration it was tuned
-     * with.
-     */
+    /** A personality trait runs 0..1 and a plan trait -1..1, so the widest gap is 2. */
     private static final double TRAIT_SPAN = 2.0;
 
     public static double inauthenticity(String style, Map<String, Double> corePersonality) {

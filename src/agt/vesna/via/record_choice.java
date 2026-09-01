@@ -8,9 +8,8 @@ import vesna.VesnaAgent;
 /**
  * vesna.via.record_choice(Partner, Style)
  *
- * Notes which style the agent chose, and for whom, before any reply has arrived. The choice itself
- * was made by the original Temper. The learner also saves how likely each style was at that moment,
- * so that when the reply comes it can work out whether the choice was better or worse than average.
+ * Records which style was chosen, and for whom, before the reply arrives. The learner also saves
+ * how likely each style was at that moment, so the reply can be judged against the average.
  */
 public class record_choice extends DefaultInternalAction {
 

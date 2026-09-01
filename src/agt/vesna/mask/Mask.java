@@ -4,13 +4,12 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
- * One mask: a small adjustment to each of the five traits, belonging to one circumstance. The
- * personality the agent shows is the real one plus this, kept within 0 and 1.
+ * One mask: an adjustment to each of the five traits, belonging to one circumstance. The
+ * personality shown is the real one plus this, kept within 0 and 1.
  *
- * Every mask starts at zero, so in the first episode the agent is simply itself everywhere and any
- * difference later on was learned. The masks are the only thing that changes; the real personality
- * never does. Each adjustment is capped, so a mask can bend the agent but not replace it: one
- * person, several faces.
+ * Masks start at zero, so any later difference between circumstances was learned. They are the only
+ * thing that changes; the real personality never does. Each adjustment is capped, so a mask bends
+ * the agent without replacing it.
  */
 public final class Mask {
 

@@ -7,18 +7,14 @@ import jason.pl.PlanLibrary;
 import jason.NoValueException;
 
 /**
- * The nine ways of helping, and the kind of person each one acts like.
+ * The nine ways of helping and the personality each one projects.
  *
- * These numbers are a second copy of the temper() annotations in alice.asl. The copy is needed:
- * after each choice the learner has to ask "what would the other eight plans have been worth?",
- * and Java cannot read another plan's annotation at that moment. validate() compares the two
- * copies when the run starts and stops it if they disagree.
+ * A second copy of the temper() annotations in alice.asl, needed because after each choice the
+ * learner has to score the eight plans it did not pick, and Java cannot read their annotations at
+ * that point. validate() stops the run if the two copies disagree.
  *
- * Note what is NOT here: any table saying which style suits which circumstance. That is the thing
- * the agent is supposed to learn. It finds out by trying something and seeing how people react --
- * tell a joke at work, notice nobody laughs. Writing the answer into the reward would defeat the
- * whole experiment. What counts as out of place is stored in the receivers' own beliefs, where
- * Alice cannot read it.
+ * There is deliberately no table of which style suits which circumstance: that is what the agent
+ * has to learn. Those norms live in the receivers' beliefs, out of Alice's reach.
  */
 public final class PlanCatalog {
 
@@ -26,18 +22,18 @@ public final class PlanCatalog {
         "o", "c", "e", "a", "n"
     };
 
-    /** Uppercase initial for display. Traits are o/c/e/a/n throughout, as in the .jcm and the plans. */
+    /** Uppercase initial, for the report. */
     public static String abbrev(String trait) {
         return trait.isEmpty() ? "?" : trait.substring(0, 1).toUpperCase(Locale.ROOT);
     }
 
-    /** The nine styles in a fixed order; the index is the CFR action index. */
+    /** Fixed order: the index is the action index used by the regret update. */
     public static final String[] STYLES = {
-        "drop_everything",  // abandon my own task, help completely
-        "help_after_task",  // help, but finish what I was doing first
+        "drop_everything",  // drop everything else and help
+        "help_after_task",  // help, but finish the current task first
         "pair_up",          // do it together, side by side
         "teach",            // explain it so they can do it themselves
-        "quick_tip",        // one fast pointer, then back to my own work
+        "quick_tip",        // one fast pointer, then back to work
         "delegate",         // send them to somebody better suited
         "joke_deflect",     // make a joke, help only half-seriously
         "polite_decline",   // say no, but warmly
@@ -60,17 +56,14 @@ public final class PlanCatalog {
 
     static {
         //     name                O     C     E     A     N    effort
-        // Each style described by the five OCEAN traits, from -1 to +1. This is the range the
-        // original Temper already accepts for a plan annotation.
+        // Five OCEAN traits per style, -1 to +1, the range the original Temper already accepts for
+        // plan annotations. -1 is the opposite of a trait, not a small amount of it: ignore has
+        // a = -0.90, active coldness.
         //
-        // -1 means the opposite of a trait, not a little of it. So ignore has a = -0.90, which is
-        // active coldness, and polite_decline has e = -0.40, which is pulling away.
-        //
-        // The agent's own personality still runs 0 to 1, unchanged. A positive trait times a
-        // negative number is still negative, so Alice, who is warm (a = 0.75), scores ignore at
-        // -1.39 and polite_decline at -0.39. Plans with a negative score are never picked, so she
-        // cannot do either until a mask makes her less agreeable. With all-positive numbers every
-        // score came out positive and no plan was ever truly off-limits.
+        // A plan is scored by multiplying the agent's traits by the plan's and summing, so a
+        // negative annotation can make the total negative -- warm Alice (a = 0.75) scores ignore at
+        // -1.39. Negative-scoring plans are never picked, so she cannot ignore anyone until a mask
+        // lowers her agreeableness. With all-positive numbers no plan was ever out of reach.
         style("drop_everything",  0.20, -0.50,  0.40,  0.90,  0.10, 1.00);
         style("help_after_task", -0.10,  0.80,  0.00,  0.40, -0.20, 0.50);
         style("pair_up",          0.60,  0.20,  0.80,  0.70, -0.30, 0.70);

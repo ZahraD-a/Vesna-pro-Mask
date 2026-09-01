@@ -86,10 +86,9 @@ public class Temper {
             throw new IllegalArgumentException( "Decision Strategy Unknown: " + strategy );
     }
 
-    // The only thing added to the original Temper. The mask code reads the real personality
-    // once at startup, then swaps in the personality to show while a mask is worn. Everything
-    // below -- scoring plans, choosing one, applying effects -- is untouched and does not know
-    // masks exist.
+    // The only addition to the original Temper. The mask code reads the real personality once
+    // at startup, then swaps in the one to show while a mask is worn. Everything below is
+    // untouched and does not know masks exist.
 
     public java.util.Map<String, Double> getPersonality() {
         return new java.util.HashMap<>( personality );
@@ -218,24 +217,19 @@ public class Temper {
     }
 
     private int getWeightedRandomIdx( List<Double> weights ) {
-        // This method picks a plan at random, but weighted: a plan that suits the agent better
-        // should come up more often. Two things were wrong with the original version, and both
-        // are fixed here. Nothing else in this class is changed.
+        // Weighted random choice: a plan that suits the agent better comes up more often. Two
+        // bugs in the original version are fixed here; nothing else in this class is changed.
         //
-        // (1) It added up the weights, which are decimals, into a whole-number variable. The
-        //     fractions were thrown away, the ranges no longer lined up, and any roll past the
-        //     last one fell through to the first plan -- which then won about 45% of the time
-        //     no matter what the personality was.
+        // (1) It summed the weights, which are decimals, into a whole-number variable. The
+        //     fractions were lost, the ranges stopped lining up, and rolls past the last one
+        //     fell through to the first plan, which then won about 45% of the time regardless
+        //     of personality.
+        // (2) It could not represent a negative weight: the running total went backwards, that
+        //     plan got no range, and the total stopped short, so most rolls fell through.
         //
-        // (2) It could not cope with a negative weight. A negative made the running total go
-        //     backwards, leaving that plan no range at all and stopping the total short, so
-        //     almost every roll missed and fell through.
-        //
-        // Neither bug ever showed up in the original project, because it always chose plans a
-        // different way and never used negative numbers in its plan annotations.
-        //
-        // A negative weight means the plan goes against who the agent is, so it is given no
-        // chance of being picked at all.
+        // Neither showed up in the original project, which chose plans a different way and used
+        // no negative annotations. A negative weight means the plan goes against the agent, so
+        // it gets no chance of being picked.
         double total = 0.0;
         for ( double weight : weights )
             total += Math.max( 0.0, weight );
