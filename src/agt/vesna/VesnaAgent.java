@@ -1,6 +1,7 @@
 package vesna;
 
 import java.util.*;
+import vesna.mask.MaskLearner;
 import java.util.logging.Logger;
 
 import jason.asSemantics.Agent;

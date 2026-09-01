@@ -1,4 +1,4 @@
-package vesna;
+package vesna.mask;
 
 import java.util.*;
 

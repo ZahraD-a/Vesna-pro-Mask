@@ -2,7 +2,7 @@ package vesna.via;
 
 import jason.asSemantics.*;
 import jason.asSyntax.*;
-import vesna.MaskLearner;
+import vesna.mask.MaskLearner;
 import vesna.VesnaAgent;
 
 /**
