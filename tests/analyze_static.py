@@ -816,7 +816,7 @@ tr:last-child td {
     }
 }
 
-/* Scrollbar styling - Anthropic style */
+/* Scrollbar styling */
 .chat-container::-webkit-scrollbar {
     width: 6px;
     height: 6px;
