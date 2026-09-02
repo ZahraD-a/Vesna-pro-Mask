@@ -72,7 +72,9 @@ public final class MaskLearner {
             Files.createDirectories(OUT);
             for (String f : new String[] { "episode_log.csv", "mask_trajectory.csv", "report.txt",
                                            "learned_masks.csv", "reward_components.csv",
-                                           "style_shift.csv", "style_by_partner.csv" })
+                                           "style_shift.csv", "style_by_partner.csv",
+                                           "plot_mask_trajectory.png", "plot_entropy.png",
+                                           "plot_style_shift.png", "plot_partner_mix.png" })
                 Files.deleteIfExists(OUT.resolve(f));
             Files.writeString(OUT.resolve("episode_log.csv"),
                 "episode,interactions,total_reward,mean_reward,entropy_work,entropy_home,entropy_conference\n");
