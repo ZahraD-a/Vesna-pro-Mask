@@ -1,0 +1,16 @@
+{
+  "experiment": "seed_sweep",
+  "purpose": "measure seed-to-seed variance to size the experiment budget",
+  "seeds": [1, 2, 3, 4, 5, 6, 7, 8],
+  "compatibility_measure": "dot",
+  "condition": "masked",
+  "circumstances": ["work", "home", "conference"],
+  "episodes_per_run": 120,
+  "rounds_per_partner": 3,
+  "mask_delta": 0.5,
+  "mask_learning_rate": 0.08,
+  "core_personality": {"o": 0.55, "c": 0.35, "e": 0.50, "a": 0.75, "n": 0.30},
+  "git_commit": "04f1aa8",
+  "runner": "experiments/seed_sweep.sh",
+  "analyzer": "experiments/analyze_sweep.py"
+}

@@ -1,0 +1,4 @@
+circumstance,mean_outcome,stderr_outcome,n_seeds
+work,-0.6956,0.0196,8
+home,-0.4922,0.0181,8
+conference,-0.3223,0.0169,8
