@@ -118,13 +118,10 @@ public final class MaskLearner {
  * against who the agent is; those get no chance of being picked, which is what Temper does too.
  */
     private double[] policy() {
-        Map<String, Double> eff = effective();
         double[] w = new double[PlanCatalog.STYLES.length];
         double sum = 0.0;
         for (int a = 0; a < w.length; a++) {
-            double dot = 0.0;
-            for (String t : Mask.OCEAN) dot += eff.getOrDefault(t, 0.0) * PlanCatalog.trait(PlanCatalog.STYLES[a], t);
-            w[a] = Math.max(0.0, dot);
+            w[a] = Math.max(0.0, temper.compatibility(PlanCatalog.traits(PlanCatalog.STYLES[a])));
             sum += w[a];
         }
         for (int a = 0; a < w.length; a++) w[a] = sum > 0 ? w[a] / sum : 1.0 / w.length;

@@ -33,12 +33,17 @@ public class Temper {
     /** Decision Strategy is an enumerable between most similar and random */
     private enum DecisionStrategy { MOST_SIMILAR, RANDOM };
 
+    /** How a plan's persona is compared with the agent's temper. */
+    private enum Compatibility { DOT, L1, COSINE };
+
     /** Personality is the persistent part of the agent temper */
     private Map<String, Double> personality;
     /** Mood is the mutable part of the agent temper */
     private Map<String, Double> mood;
     /** The agent decision strategy */
     private DecisionStrategy strategy;
+    /** The compatibility measure; DOT reproduces the original behaviour exactly. */
+    private Compatibility compat = Compatibility.DOT;
     /** A dice necessary to generate random numbers */
     private Random dice = new Random();
 
@@ -98,6 +103,48 @@ public class Temper {
         this.personality = effective;
     }
 
+    /**
+     * Pick the compatibility measure: dot, l1 or cosine. Anything else, including null, leaves it
+     * at dot, which is what the committed baseline was measured under.
+     */
+    public void setCompatibility( String name ) {
+        if ( name == null ) return;
+        if ( "l1".equalsIgnoreCase( name.trim() ) )          this.compat = Compatibility.L1;
+        else if ( "cosine".equalsIgnoreCase( name.trim() ) ) this.compat = Compatibility.COSINE;
+        else                                                 this.compat = Compatibility.DOT;
+    }
+
+    /**
+     * Compatibility between the current temper and a plan's persona, from the four running sums.
+     * The single place the measures are defined, so Temper and MaskLearner cannot drift apart.
+     *
+     *   dot     sum a*b            -- polarity: opposite signs multiply to a negative score
+     *   l1      sum (1 - |a-b|)    -- closeness: highest when the plan matches trait for trait
+     *   cosine  dot / (|a| |b|)    -- direction only, magnitude ignored
+     */
+    private double combine( double dot, double l1, double sumA2, double sumB2, int n ) {
+        if ( compat == Compatibility.L1 )
+            return n - l1;
+        if ( compat == Compatibility.COSINE ) {
+            double denom = Math.sqrt( sumA2 ) * Math.sqrt( sumB2 );
+            return denom == 0.0 ? 0.0 : dot / denom;
+        }
+        return dot;
+    }
+
+    /** Compatibility of a plan persona given as a trait map. Used by the mask layer. */
+    public double compatibility( Map<String, Double> planTraits ) {
+        double dot = 0, l1 = 0, sumA2 = 0, sumB2 = 0; int n = 0;
+        for ( Map.Entry<String, Double> e : planTraits.entrySet() ) {
+            Double mine = personality.containsKey( e.getKey() ) ? personality.get( e.getKey() )
+                                                                : mood.get( e.getKey() );
+            if ( mine == null ) continue;
+            double a = mine, b = e.getValue();
+            dot += a * b; l1 += Math.abs( a - b ); sumA2 += a * a; sumB2 += b * b; n++;
+        }
+        return combine( dot, l1, sumA2, sumB2, n );
+    }
+
     /** Seed the plan-selection RNG so a run can be reproduced. */
     public void setSeed( long seed ) {
         this.dice = new Random( seed );
@@ -105,6 +152,7 @@ public class Temper {
 
     public double computeWeight( Pred label ) throws NoValueException {
         double choiceWeight = 0;
+        double dot = 0, l1 = 0, sumA2 = 0, sumB2 = 0; int n = 0;
 
         Literal temperAnnot = label.getAnnot( "temper" );
         if ( temperAnnot == null )
@@ -124,14 +172,20 @@ public class Temper {
                 double traitValue = ( double ) ( (NumberTerm ) trait.getTerm( 0 ) ).solve();
                 if ( traitValue < -1.0 || traitValue > 1.0 )
                     throw new IllegalArgumentException("Trait value out of range, found: " + trait + ". The value should be inside [0, 1].");
-                if ( strategy == DecisionStrategy.RANDOM )
-                    choiceWeight += traitTemper * traitValue;
-                else if ( strategy == DecisionStrategy.MOST_SIMILAR )
+                if ( strategy == DecisionStrategy.RANDOM ) {
+                    dot += traitTemper * traitValue;
+                    l1  += Math.abs( traitTemper - traitValue );
+                    sumA2 += traitTemper * traitTemper;
+                    sumB2 += traitValue * traitValue;
+                    n++;
+                } else if ( strategy == DecisionStrategy.MOST_SIMILAR )
                     choiceWeight += Math.abs( traitTemper - traitValue );
             } catch ( NoValueException nve ) {
                 throw new NoValueException( "One of the plans has a mispelled annotation" );
             }
         }
+        if ( strategy == DecisionStrategy.RANDOM )
+            return combine( dot, l1, sumA2, sumB2, n );
         return choiceWeight;
     }
 

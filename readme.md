@@ -38,6 +38,22 @@ oracle anywhere in the system.
 Experiment settings -- episodes, rounds, circumstances, verbosity -- are in `vesna.jcm`
 under `beliefs:`, never in the `.asl`. A different experiment means a different `.jcm`.
 
+## Compatibility measures
+
+How well a plan suits the agent is scored by one of three measures, set per agent with
+`compat:` in `vesna.jcm`:
+
+| value | formula | reads as |
+|---|---|---|
+| `dot` (default) | sum of trait x annotation | polarity: opposite signs score negative |
+| `l1` | sum of (1 - abs difference) | closeness: highest when traits match one for one |
+| `cosine` | dot / (norm x norm) | direction only, magnitude ignored |
+
+`dot` is the default and is what every committed result was measured under; omitting the
+parameter selects it. The measure is defined once, in `Temper.combine`, and both plan
+selection and the mask learner's policy model read it from there, so the learner can never
+score against a distribution the agent is not playing.
+
 ## Code layout
 
     src/agt/vesna/        unchanged from VEsNA-Pro: Temper, wrappers, VesnaAgent
