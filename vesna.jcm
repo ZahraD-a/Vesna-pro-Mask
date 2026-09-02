@@ -18,6 +18,7 @@ mas vesna {
         ag-class:            vesna.VesnaAgent
         temper:              temper(o(0.55), c(0.35), e(0.50), a(0.75), n(0.30), stress(0.0)[mood], satisfaction(0.0)[mood], social_energy(0.0)[mood])
         strategy:            random
+        seed:                1
         use_masks:           true
         mask_delta:          0.5
         mask_learning_rate:  0.08
@@ -37,18 +38,21 @@ mas vesna {
         ag-class:  vesna.VesnaAgent
         temper:    temper(o(0.30), c(0.85), e(0.25), a(0.30), n(0.40))
         strategy:  random
+        seed:      1
     }
 
     agent carol: carol.asl {
         ag-class:  vesna.VesnaAgent
         temper:    temper(o(0.55), c(0.45), e(0.75), a(0.85), n(0.25))
         strategy:  random
+        seed:      1
     }
 
     agent dave: dave.asl {
         ag-class:  vesna.VesnaAgent
         temper:    temper(o(0.85), c(0.25), e(0.80), a(0.55), n(0.35))
         strategy:  random
+        seed:      1
     }
 
 }

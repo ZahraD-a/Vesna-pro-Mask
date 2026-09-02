@@ -98,6 +98,11 @@ public class Temper {
         this.personality = effective;
     }
 
+    /** Seed the plan-selection RNG so a run can be reproduced. */
+    public void setSeed( long seed ) {
+        this.dice = new Random( seed );
+    }
+
     public double computeWeight( Pred label ) throws NoValueException {
         double choiceWeight = 0;
 

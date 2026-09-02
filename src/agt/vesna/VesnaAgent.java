@@ -35,6 +35,11 @@ public class VesnaAgent extends Agent {
         String strategy = s.getUserParameter("strategy");
         temper = new Temper(temperLiteral, strategy);   // ORIGINAL Temper, unchanged
 
+        // One seed value in the .jcm gives every agent its own reproducible stream: the agent name
+        // is mixed in, so all four can carry the same seed line and still behave differently.
+        String seed = s.getUserParameter("seed");
+        if (seed != null) temper.setSeed(Long.parseLong(seed.trim()) * 31L + getTS().getAgArch().getAgName().hashCode());
+
         if ("true".equals(s.getUserParameter("use_masks"))) {
             double delta = parseDouble(s.getUserParameter("mask_delta"), 0.5);
             double lr    = parseDouble(s.getUserParameter("mask_learning_rate"), 0.08);
