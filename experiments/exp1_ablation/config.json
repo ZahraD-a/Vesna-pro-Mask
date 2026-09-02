@@ -1,0 +1,14 @@
+{
+  "experiment": "exp1_ablation",
+  "claim": "letting the mask move improves the outcome over a frozen personality",
+  "conditions": {"fixed": "mask_delta 0.0, masks pinned at zero", "masked": "mask_delta 0.5"},
+  "compatibility_measures": ["dot", "l1", "cosine"],
+  "seeds": [1,2,3,4,5,6,7,8,9,10],
+  "runs": 60,
+  "episodes_per_run": 120,
+  "rounds_per_partner": 3,
+  "mask_learning_rate": 0.08,
+  "core_personality": {"o":0.55,"c":0.35,"e":0.50,"a":0.75,"n":0.30},
+  "runner": "experiments/exp1_ablation/run.sh",
+  "analyzer": "experiments/exp1_ablation/analyze.py"
+}

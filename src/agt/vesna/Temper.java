@@ -132,7 +132,21 @@ public class Temper {
         return dot;
     }
 
-    /** Compatibility of a plan persona given as a trait map. Used by the mask layer. */
+    /**
+     * Compatibility of a plan persona given as a trait map. Used by the mask layer.
+     *
+     * INVARIANT: this and computeWeight must always agree. The mask learner scores regret against
+     * the distribution it believes the agent is playing; if the two ever compute compatibility
+     * differently, every mask update is quietly wrong while masks still grow and differentiate, so
+     * nothing in the output looks broken. Both therefore route through combine(). Do not
+     * reimplement the measure anywhere else.
+     *
+     * Note the ranges are mixed: a personality trait is in [0,1] but a plan annotation is in
+     * [-1,1]. Under dot and cosine a plan opposed to the agent scores negative and is dropped by
+     * the caller's clamp; under l1 the per-trait term is 1 - |a-b| with |a-b| at most 2, which in
+     * practice stays positive, so l1 excludes nothing. That difference is the point of comparing
+     * the measures, not a defect in any of them.
+     */
     public double compatibility( Map<String, Double> planTraits ) {
         double dot = 0, l1 = 0, sumA2 = 0, sumB2 = 0; int n = 0;
         for ( Map.Entry<String, Double> e : planTraits.entrySet() ) {
