@@ -10,6 +10,9 @@
 
 mas vesna {
 
+    // compat picks the compatibility measure: dot, l1 or cosine. dot is the default and is what
+    // the committed results were measured under; the other two exist for the sensitivity study.
+    //
     // Warm, a little disorganised, calm. Every mask starts at zero, so any difference
     // between circumstances was learned. strategy must be random: the alternative is
     // deterministic and would leave nothing to learn. mask_delta caps how far one
@@ -19,6 +22,7 @@ mas vesna {
         temper:              temper(o(0.55), c(0.35), e(0.50), a(0.75), n(0.30), stress(0.0)[mood], satisfaction(0.0)[mood], social_energy(0.0)[mood])
         strategy:            random
         seed:                1
+        compat:              dot
         use_masks:           true
         mask_delta:          0.5
         mask_learning_rate:  0.08
@@ -39,6 +43,7 @@ mas vesna {
         temper:    temper(o(0.30), c(0.85), e(0.25), a(0.30), n(0.40))
         strategy:  random
         seed:      1
+        compat:    dot
     }
 
     agent carol: carol.asl {
@@ -46,6 +51,7 @@ mas vesna {
         temper:    temper(o(0.55), c(0.45), e(0.75), a(0.85), n(0.25))
         strategy:  random
         seed:      1
+        compat:    dot
     }
 
     agent dave: dave.asl {
@@ -53,6 +59,7 @@ mas vesna {
         temper:    temper(o(0.85), c(0.25), e(0.80), a(0.55), n(0.35))
         strategy:  random
         seed:      1
+        compat:    dot
     }
 
 }

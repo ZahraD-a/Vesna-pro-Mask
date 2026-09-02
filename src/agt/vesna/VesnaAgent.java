@@ -37,6 +37,8 @@ public class VesnaAgent extends Agent {
 
         // One seed value in the .jcm gives every agent its own reproducible stream: the agent name
         // is mixed in, so all four can carry the same seed line and still behave differently.
+        temper.setCompatibility(s.getUserParameter("compat"));   // absent -> dot, the measured baseline
+
         String seed = s.getUserParameter("seed");
         if (seed != null) temper.setSeed(Long.parseLong(seed.trim()) * 31L + getTS().getAgArch().getAgName().hashCode());
 
