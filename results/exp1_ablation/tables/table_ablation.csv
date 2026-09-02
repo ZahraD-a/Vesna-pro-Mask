@@ -1,0 +1,7 @@
+measure,condition,work_mean,work_stderr,home_mean,home_stderr,conference_mean,conference_stderr,n_seeds
+dot,fixed,-1.213,0.0,-0.6134,0.0,-0.419,0.0,1
+dot,masked,-0.6412,0.0,-0.463,0.0,-0.2731,0.0,1
+l1,fixed,-1.2338,0.0,-1.0417,0.0,-1.0301,0.0,1
+l1,masked,-1.1481,0.0,-1.0093,0.0,-1.0023,0.0,1
+cosine,fixed,-1.0208,0.0,-0.794,0.0,-0.8125,0.0,1
+cosine,masked,-0.5972,0.0,-0.6296,0.0,-0.6204,0.0,1
