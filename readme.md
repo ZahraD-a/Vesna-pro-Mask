@@ -79,6 +79,23 @@ already validates. Using the signed half of the annotation range is what lets a 
 *negative* against the core, so a plan opposed to who the agent is gets no probability at
 all until a mask brings it into reach.
 
+## Scope and limitations
+
+Mask learning is enabled on a single focal agent, Alice, while Bob, Carol and Dave provide a
+fixed, personality-differentiated environment. The architecture does not preclude multi-agent
+learning: `use_masks` is per-agent by design, and the learner is a per-agent instance holding
+its own wardrobe and reward machine.
+
+The current implementation does block it, for one specific reason. `PlanCatalog` is a global
+shared across every agent in the JVM and permits only one active style set at a time. Alice's
+nine helping styles and a receiver's three reaction styles are distinct sets, so enabling
+learning on a receiver as well requires refactoring the catalog to per-learner style sets. That
+is a bounded engineering change, not an architectural one.
+
+Beyond the implementation change, characterising the joint dynamics that emerge when several
+agents' masks evolve against one another needs game-theoretic treatment of the resulting
+non-stationary environment, which is outside this paper's scope.
+
 ## Results
 
 See `results/README.md` for the file-by-file map and the range ablation kept in

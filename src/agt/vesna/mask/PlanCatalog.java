@@ -42,6 +42,15 @@ public final class PlanCatalog {
     private static final Map<String, Map<String, Map<String, Double>>> DOMAIN_TRAITS = new LinkedHashMap<>();
     private static final Map<String, Map<String, Double>> DOMAIN_EFFORT = new LinkedHashMap<>();
 
+    // SINGLE DOMAIN PER JVM. active is global, so every learner in a run shares one style set.
+    //
+    // This is what stops a second agent learning alongside Alice today. A receiver chooses among
+    // react_accept / react_tolerate / react_reject, which are not in the social set, so index()
+    // returns -1 for every choice it makes, recordChoice skips it, and its mask sits at zero for
+    // the whole run. Nothing throws and every output file is still written, so the failure looks
+    // exactly like a successful run with a flat mask.
+    //
+    // Supporting it means giving each learner its own style set rather than reading this field.
     private static String active = SOCIAL;
 
     /** Fixed order: the index is the action index used by the regret update. */
