@@ -2,6 +2,7 @@ package vesna;
 
 import java.util.*;
 import vesna.mask.MaskLearner;
+import vesna.mask.PlanCatalog;
 
 import jason.asSemantics.Agent;
 import jason.asSemantics.Intention;
@@ -41,11 +42,14 @@ public class VesnaAgent extends Agent {
 
         String seed = s.getUserParameter("seed");
         if (seed != null) temper.setSeed(Long.parseLong(seed.trim()) * 31L + getTS().getAgArch().getAgName().hashCode());
+        if (seed != null) vesna.via.env_outcome.seed(Long.parseLong(seed.trim()));
 
         if ("true".equals(s.getUserParameter("use_masks"))) {
+            PlanCatalog.use(s.getUserParameter("domain"));  // absent -> social, the measured default
+
             double delta = parseDouble(s.getUserParameter("mask_delta"), 0.5);
             double lr    = parseDouble(s.getUserParameter("mask_learning_rate"), 0.08);
-            masks = new MaskLearner(temper, delta, lr);
+            masks = new MaskLearner(temper, delta, lr, s.getUserParameter("results_dir"));
         }
     }
 

@@ -1,0 +1,4 @@
+partner,style,share
+environment,push_through,0.0250
+environment,steady_recovery,0.3833
+environment,patient_recovery,0.5917

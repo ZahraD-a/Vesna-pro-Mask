@@ -1,0 +1,31 @@
+// A second instantiation of the same framework, with no social interaction at all.
+//
+// One agent, no partners, no messages. Alice keeps her own energy up and the outcome comes from
+// the environment rather than from anybody's reaction. Everything else -- the masks, the personality
+// seam into Temper, the regret update, the logging -- is the same code as vesna.jcm runs.
+//
+// domain: energy selects the three recovery styles in PlanCatalog instead of the nine social ones.
+// Omitting it leaves the social set, so this parameter cannot disturb the social results.
+
+mas vesna_energy {
+
+    agent alice: alice_energy.asl {
+        ag-class:            vesna.VesnaAgent
+        temper:              temper(o(0.55), c(0.35), e(0.50), a(0.75), n(0.30), stress(0.0)[mood], satisfaction(0.0)[mood])
+        strategy:            random
+        seed:                1
+        compat:              dot
+        domain:              energy
+        results_dir:         "results/nonsocial/latest"
+        use_masks:           true
+        mask_delta:          0.5
+        mask_learning_rate:  0.08
+        beliefs:             rounds_per_episode(3),
+                             max_episodes(120),
+                             dialogue_episodes(2),
+                             close_delay(0),
+                             verbose
+        goals:               start
+    }
+
+}

@@ -50,9 +50,11 @@ public final class MaskLearner {
     private final Map<String, double[]> components = new LinkedHashMap<>();  // circ -> [outcome,auth,cost,n]
     private final Map<String, int[]>    outcomes   = new LinkedHashMap<>();  // circ -> [pos,neu,neg]
 
-    private static final Path OUT = Path.of("results", "latest");
+    private final Path OUT;
 
-    public MaskLearner(Temper temper, double maskDelta, double learningRate) {
+    public MaskLearner(Temper temper, double maskDelta, double learningRate, String outDir) {
+        this.OUT           = Path.of(outDir == null || outDir.isBlank()
+                                     ? "results/latest" : outDir.trim().replace("\"", ""));
         this.temper        = temper;
         this.core          = temper.getPersonality();   // the one read of the core
         this.maskDelta     = maskDelta;
@@ -354,7 +356,11 @@ public final class MaskLearner {
         p("    share of each plan, first %d episodes -> last %d%n", w, w);
         Map<String, int[]> early = fold(0, w), late = fold(n - w, n);
         StringBuilder scsv = new StringBuilder("circumstance,style,early_pct,late_pct,shift\n");
-        for (String c : new String[]{"work", "home", "conference", "default"}) {
+        // The known social circumstances first, in their long-standing order, then anything else
+        // the run actually visited. Without the second part a new domain reports nothing here.
+        List<String> order = new ArrayList<>(Arrays.asList("work", "home", "conference", "default"));
+        for (String c : wardrobe.keySet()) if (!order.contains(c)) order.add(c);
+        for (String c : order) {
             int[] e = early.get(c), l = late.get(c);
             if (e == null && l == null) continue;
             p("%n    circumstance: %s%n", c);
