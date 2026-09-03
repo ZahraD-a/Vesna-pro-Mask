@@ -1,0 +1,61 @@
+
+=================== WHAT THE MASKS LEARNED ===================
+120 episodes. Every mask started at zero: on episode 0 the agent was
+simply herself in every circumstance. All of the following was learned.
+
+                           O       C       E       A       N      ||M||
+    core identity      +0.55   +0.35   +0.50   +0.75   +0.30        --
+                    O openness   C conscientiousness   E extraversion   A agreeableness   N neuroticism
+    mask_default       +0.00   +0.00   +0.00   +0.00   +0.00     0.000
+    mask_work          -0.13   +0.41   -0.50   -0.50   -0.50     0.969
+    mask_home          -0.50   -0.42   -0.50   -0.50   -0.50     1.083
+    mask_conference    -0.25   -0.50   +0.30   -0.05   -0.50     0.809
+
+    who she becomes, trait by trait (core -> core + mask):
+    mask_default     unchanged (circumstance never visited)
+    mask_work        O 0.55->0.42  C 0.35->0.76  E 0.50->0.00  A 0.75->0.25  N 0.30->0.00 
+                     strongest shift: E -0.50
+    mask_home        O 0.55->0.05  C 0.35->0.00  E 0.50->0.00  A 0.75->0.25  N 0.30->0.00 
+                     strongest shift: O -0.50
+    mask_conference  O 0.55->0.30  C 0.35->0.00  E 0.50->0.80  A 0.75->0.70  N 0.30->0.00 
+                     strongest shift: C -0.50
+
+--- where the learning signal came from (mean per interaction) ---
+    Only the outcome term carries information the agent did not already have;
+    authenticity and cost it could compute for every style without acting.
+    work         outcome +0.186   authenticity -0.185   cost -0.210   |  + 47%  0  0%  - 53%
+    home         outcome -0.947   authenticity -0.140   cost -0.200   |  + 24%  0  0%  - 76%
+    conference   outcome +1.495   authenticity -0.117   cost -0.193   |  + 75%  0  0%  - 25%
+
+--- did the mask change what she actually does? ---
+    share of each plan, first 24 episodes -> last 24
+
+    circumstance: work
+        deep_work         17.1%  ->   31.0%   +13.9
+        handle_backlog     9.3%  ->   18.5%    +9.3
+        quick_scan         1.9%  ->    0.0%    -1.9
+        tidy_up            9.7%  ->   18.5%    +8.8
+        take_notes        25.0%  ->   25.5%    +0.5
+        network_actively  37.0%  ->    6.5%   -30.6
+
+    circumstance: home
+        deep_work          3.7%  ->    1.4%    -2.3
+        handle_backlog     3.2%  ->    0.9%    -2.3
+        quick_scan         9.7%  ->    8.3%    -1.4
+        tidy_up           10.2%  ->   18.1%    +7.9
+        take_notes        13.4%  ->   17.1%    +3.7
+        network_actively  59.7%  ->   54.2%    -5.6
+
+    circumstance: conference
+        quick_scan        22.2%  ->   26.4%    +4.2
+        take_notes         1.9%  ->    0.0%    -1.9
+        network_actively  75.9%  ->   73.6%    -2.3
+
+--- transfer: the mask is a property of the circumstance, not of the partner ---
+    One mask is learned per circumstance and indexed by nothing else, so the rows
+    below -- her style mix with each partner -- should look ALIKE. The work-mask
+    learned while dealing with Bob transfers unchanged to Carol, Dave and any new
+    coworker: mask count does not grow with the number of agents.
+    environment deep_work=9% quick_scan=12% tidy_up=11% take_notes=14% network_actively=48%
+==============================================================
+
