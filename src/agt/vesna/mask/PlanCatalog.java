@@ -36,6 +36,7 @@ public final class PlanCatalog {
      * measured before the second domain existed still reproduce.
      */
     public static final String SOCIAL = "social";
+    public static final String SELFTASK = "selftask";
 
     private static final Map<String, List<String>> DOMAIN_STYLES = new LinkedHashMap<>();
     private static final Map<String, Map<String, Map<String, Double>>> DOMAIN_TRAITS = new LinkedHashMap<>();
@@ -100,6 +101,22 @@ public final class PlanCatalog {
         style(SOCIAL, "polite_decline",  -0.30,  0.40, -0.40, -0.30,  0.20, 0.00);
         style(SOCIAL, "ignore",          -0.60, -0.30, -0.80, -0.90,  0.40, 0.00);
 
+
+        // The self-task domain: nine things Alice does on her own, no partner involved. Same shape
+        // as the social set -- every style available in every circumstance, so the regret baseline
+        // averages over the set that could actually have been chosen. What differs between
+        // circumstances is how well each lands, which only the environment knows.
+        //
+        //            name                     O      C      E      A      N    effort
+        style(SELFTASK, "deep_work",         0.60,  0.80, -0.70, -0.10, -0.80, 0.90);
+        style(SELFTASK, "handle_backlog",    0.10,  0.70, -0.40,  0.00, -0.30, 0.70);
+        style(SELFTASK, "quick_scan",        0.00, -0.50,  0.40,  0.10,  0.20, 0.20);
+        style(SELFTASK, "tidy_up",          -0.20,  0.70, -0.40,  0.30, -0.60, 0.50);
+        style(SELFTASK, "rest_deeply",      -0.10, -0.40, -0.70,  0.00, -0.80, 0.10);
+        style(SELFTASK, "zone_out",         -0.60, -0.70, -0.20, -0.30,  0.10, 0.00);
+        style(SELFTASK, "take_notes",        0.60,  0.70, -0.60,  0.10, -0.50, 0.60);
+        style(SELFTASK, "network_actively",  0.30, -0.20,  0.80,  0.70, -0.40, 0.80);
+        style(SELFTASK, "step_away",        -0.10, -0.30, -0.70, -0.40,  0.40, 0.10);
 
         use(SOCIAL);
     }

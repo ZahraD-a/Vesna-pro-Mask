@@ -42,6 +42,7 @@ public class VesnaAgent extends Agent {
 
         String seed = s.getUserParameter("seed");
         if (seed != null) temper.setSeed(Long.parseLong(seed.trim()) * 31L + getTS().getAgArch().getAgName().hashCode());
+        if (seed != null) vesna.via.self_outcome.seed(Long.parseLong(seed.trim()));
 
         if ("true".equals(s.getUserParameter("use_masks"))) {
             PlanCatalog.use(s.getUserParameter("domain"));  // absent -> social, the measured default

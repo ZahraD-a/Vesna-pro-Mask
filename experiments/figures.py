@@ -129,8 +129,40 @@ def fig_seed_variance():
 
 
 
+def fig_two_scenarios():
+    """The same three circumstances, learned twice: once from partners, once from the environment."""
+    social = os.path.join(LATEST, "mask_trajectory.csv")
+    nonsoc = "results/nonsocial/latest/mask_trajectory.csv"
+    if not os.path.exists(nonsoc):
+        print("  skipped fig_two_scenarios (no non-social run)"); return
+    fig, axes = plt.subplots(2, len(CIRCS), figsize=(4.3 * len(CIRCS), 7.2), sharey=True, sharex=True)
+    for row, (path, label) in enumerate([(social, "social: outcomes from partners"),
+                                         (nonsoc, "non-social: outcomes from the environment")]):
+        data = rows(path)
+        for col, c in enumerate(CIRCS):
+            ax = axes[row][col]
+            sub = sorted([r for r in data if r["mask"] == "mask_" + c],
+                         key=lambda r: int(r["episode"]))
+            if not sub:
+                ax.set_visible(False); continue
+            ep = [int(r["episode"]) for r in sub]
+            for t, lab in zip(TRAITS, LABELS):
+                ax.plot(ep, [float(r[t]) for r in sub], lw=1.8, label=lab)
+            ax.axhline(0, color="0.55", ls="--", lw=0.9)
+            ax.grid(alpha=0.25)
+            if row == 0:
+                ax.set_title("mask_" + c, fontsize=12)
+            if row == 1:
+                ax.set_xlabel("episode")
+        axes[row][0].set_ylabel(label + "\n\nmask offset per trait", fontsize=9)
+    axes[0][-1].legend(loc="center left", bbox_to_anchor=(1.02, 0.5), frameon=False)
+    fig.suptitle("The same three circumstances, learned twice. Same code, same masks, "
+                 "different source of feedback.", fontsize=12.5)
+    fig.tight_layout()
+    save(fig, "fig_two_scenarios")
 if __name__ == "__main__":
     fig_pirandello()
     fig_mask_by_trait()
     fig_transfer()
     fig_seed_variance()
+    fig_two_scenarios()

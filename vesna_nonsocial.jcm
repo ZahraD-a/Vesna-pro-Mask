@@ -1,0 +1,35 @@
+// The same framework, run without any other agent present.
+//
+// One agent, no partners, no messages. Alice moves through the same three circumstances as the
+// social scenario and wears the same three masks, but her feedback comes from the environment
+// rather than from anybody's reaction.
+//
+// This is a separate run from vesna.jcm and shares nothing with it at run time: its own learner,
+// its own plan set, its own results directory. Neither scenario can affect the other's numbers.
+//
+// domain: selftask picks the nine solitary styles in PlanCatalog instead of the nine social ones.
+// Omitting it leaves the social set, so this parameter cannot disturb the social results.
+
+mas vesna_nonsocial {
+
+    agent alice: alice_nonsocial.asl {
+        ag-class:            vesna.VesnaAgent
+        temper:              temper(o(0.55), c(0.35), e(0.50), a(0.75), n(0.30), stress(0.0)[mood], satisfaction(0.0)[mood])
+        strategy:            random
+        seed:                1
+        compat:              dot
+        domain:              selftask
+        results_dir:         "results/nonsocial/latest"
+        use_masks:           true
+        mask_delta:          0.5
+        mask_learning_rate:  0.08
+        beliefs:             circumstances([work, home, conference]),
+                             tasks_per_circumstance(9),
+                             max_episodes(120),
+                             dialogue_episodes(2),
+                             close_delay(0),
+                             verbose
+        goals:               start
+    }
+
+}
