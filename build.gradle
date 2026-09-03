@@ -50,17 +50,6 @@ task plots (type: Exec) {
 }
 run.finalizedBy plots
 
-task runEnergy (type: JavaExec, dependsOn: 'classes') {
-    description 'runs the non-social energy scenario'
-    group ' JaCaMo'
-    mainClass = 'jacamo.infra.JaCaMoLauncher'
-    args 'vesna_energy.jcm'
-    classpath sourceSets.main.runtimeClasspath
-    executable = javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(21) }.get().executablePath
-    standardOutput = System.out
-    errorOutput = System.err
-}
-
 javadoc {
     destinationDir = file( "$buildDir/docs/javadoc" )
     options.memberLevel = JavadocMemberLevel.PRIVATE

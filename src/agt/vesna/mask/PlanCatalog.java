@@ -36,7 +36,6 @@ public final class PlanCatalog {
      * measured before the second domain existed still reproduce.
      */
     public static final String SOCIAL = "social";
-    public static final String ENERGY = "energy";
 
     private static final Map<String, List<String>> DOMAIN_STYLES = new LinkedHashMap<>();
     private static final Map<String, Map<String, Map<String, Double>>> DOMAIN_TRAITS = new LinkedHashMap<>();
@@ -101,14 +100,6 @@ public final class PlanCatalog {
         style(SOCIAL, "polite_decline",  -0.30,  0.40, -0.40, -0.30,  0.20, 0.00);
         style(SOCIAL, "ignore",          -0.60, -0.30, -0.80, -0.90,  0.40, 0.00);
 
-        // The energy domain: three ways to restore the agent's own energy. No partner is involved
-        // and the outcome comes from the environment, but the trait vectors mean the same thing --
-        // the persona each way of acting projects. Effort is the time each one costs.
-        //
-        //          name                    O      C      E      A      N    effort
-        style(ENERGY, "push_through",     0.30, -0.40,  0.70,  0.20,  0.50, 0.10);
-        style(ENERGY, "steady_recovery",  0.20,  0.60,  0.10,  0.30, -0.20, 0.40);
-        style(ENERGY, "patient_recovery", 0.50,  0.80, -0.20,  0.40, -0.60, 0.80);
 
         use(SOCIAL);
     }
