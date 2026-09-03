@@ -27,7 +27,7 @@ mas vesna_nonsocial {
                              tasks_per_circumstance(9),
                              max_episodes(120),
                              dialogue_episodes(2),
-                             close_delay(0),
+                             close_delay(90000),
                              verbose
         goals:               start
     }
