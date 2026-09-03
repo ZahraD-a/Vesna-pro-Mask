@@ -16,11 +16,32 @@ regret minimisation from the outcomes other agents actually return. Only the mas
 
 ## Running
 
-    ./gradlew run
+Two scenarios, same framework. Each takes about 90 seconds for 120 episodes, then holds the
+console open for 90 seconds so the end-of-run report can be read.
 
-Agent output goes to Jason's MAS console window, not the terminal (see
-`logging.properties`). Results are written to `results/latest/`; the end-of-run summary
-is `results/latest/report.txt`. Plots: `python scripts/plot_results.py`.
+    ./gradlew run              # social: Alice with Bob, Carol and Dave
+    ./gradlew runNonSocial     # non-social: Alice alone, feedback from the environment
+
+Agent output goes to Jason's MAS console window, not the terminal (see `logging.properties`),
+and that window closes with the run. The report is also written to disk either way:
+
+| | results | report |
+|---|---|---|
+| social | `results/latest/` | `results/latest/report.txt` |
+| non-social | `results/nonsocial/latest/` | `results/nonsocial/latest/report.txt` |
+
+Figures redraw automatically after the social run. To rebuild them all by hand:
+
+    python scripts/plot_results.py     # per-run plots for results/latest
+    python experiments/figures.py      # summary figures into results/figures/
+
+To reproduce the measured experiments:
+
+    bash experiments/seed_sweep.sh 1 8 && python experiments/analyze_sweep.py
+    bash experiments/exp1_ablation/run.sh 1 10 && python experiments/exp1_ablation/analyze.py
+
+Runs are seeded. `./gradlew run` twice gives byte-identical output; change `seed:` in the
+`.jcm` to get a different run.
 
 ## The agents
 
