@@ -1,0 +1,16 @@
+circumstance,mask,trait,core,mask_offset,effective
+default,mask_default,o,0.5500,0.0000,0.5500
+default,mask_default,c,0.3500,0.0000,0.3500
+default,mask_default,e,0.5000,0.0000,0.5000
+default,mask_default,a,0.7500,0.0000,0.7500
+default,mask_default,n,0.3000,0.0000,0.3000
+depleted,mask_depleted,o,0.5500,-0.0500,0.5000
+depleted,mask_depleted,c,0.3500,0.4500,0.8000
+depleted,mask_depleted,e,0.5000,-0.5000,0.0000
+depleted,mask_depleted,a,0.7500,-0.3500,0.4000
+depleted,mask_depleted,n,0.3000,-0.5000,0.0000
+rested,mask_rested,o,0.5500,-0.3499,0.2001
+rested,mask_rested,c,0.3500,0.2499,0.5999
+rested,mask_rested,e,0.5000,-0.3999,0.1001
+rested,mask_rested,a,0.7500,-0.4498,0.3002
+rested,mask_rested,n,0.3000,-0.4998,0.0000

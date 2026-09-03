@@ -128,8 +128,39 @@ def fig_seed_variance():
     save(fig, "fig_seed_variance")
 
 
+def fig_generality():
+    """Social and non-social masks side by side, from two separate runs of the same code."""
+    social = os.path.join(LATEST, "mask_trajectory.csv")
+    energy = "results/nonsocial/latest/mask_trajectory.csv"
+    if not os.path.exists(energy):
+        print("  skipped fig_generality (no non-social run)"); return
+    panels = [(social, c, "social") for c in CIRCS] +              [(energy, c, "environmental") for c in ["depleted", "rested"]]
+
+    fig, axes = plt.subplots(1, len(panels), figsize=(4.0 * len(panels), 4.0), sharey=True)
+    for ax, (path, circ, kind) in zip(axes, panels):
+        data = rows(path)
+        sub = sorted([r for r in data if r["mask"] == "mask_" + circ],
+                     key=lambda r: int(r["episode"]))
+        if not sub:
+            ax.set_visible(False); continue
+        ep = [int(r["episode"]) for r in sub]
+        for t, lab in zip(TRAITS, LABELS):
+            ax.plot(ep, [float(r[t]) for r in sub], lw=1.8, label=lab)
+        ax.axhline(0, color="0.55", ls="--", lw=0.9)
+        ax.set_title("mask_%s\n(%s)" % (circ, kind),
+                     color="#3b6ea5" if kind == "social" else "#8a5a2b")
+        ax.set_xlabel("episode"); ax.grid(alpha=0.25)
+    axes[0].set_ylabel("mask offset per trait")
+    axes[-1].legend(loc="center left", bbox_to_anchor=(1.02, 0.5), frameon=False)
+    fig.suptitle("The same learner, two kinds of feedback. Left three: outcomes from partners. "
+                 "Right two: outcomes from the environment, no partner involved.", fontsize=12)
+    fig.tight_layout()
+    save(fig, "fig_generality")
+
+
 if __name__ == "__main__":
     fig_pirandello()
     fig_mask_by_trait()
     fig_transfer()
     fig_seed_variance()
+    fig_generality()
