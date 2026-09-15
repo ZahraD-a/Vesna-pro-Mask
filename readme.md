@@ -54,10 +54,32 @@ oracle anywhere in the system.
 | `src/agt/alice.asl` | the learning agent: life cycle, nine ways to help, mask selection |
 | `src/agt/receiver.asl` | shared receiver behaviour |
 | `src/agt/bob.asl`, `carol.asl`, `dave.asl` | per-agent taste (`likes_style`) and norms (`improper`) |
-| `src/agt/mask_rules.asl` | which mask is wearable in which circumstance |
+| `src/agt/mask_rules.asl` | how the circumstance is derived, and which mask that makes wearable |
 
-Experiment settings -- episodes, rounds, circumstances, verbosity -- are in `vesna.jcm`
+Experiment settings -- episodes, rounds, situations, verbosity -- are in `vesna.jcm`
 under `beliefs:`, never in the `.asl`. A different experiment means a different `.jcm`.
+
+## Circumstances are derived, not given
+
+The agent is never told where she is. `situations/1` in the `.jcm` is a schedule of *world
+states* -- facts, not labels:
+
+    situations([[at(office),hour(10),colleagues_present], [at(home),hour(20)],
+                [at(venue),hour(14),session_running]])
+
+Entering one clears the previous facts and asserts these, and the circumstance follows from
+rules in `mask_rules.asl`, each with real conditions behind it:
+
+    circumstance(work) :- at(office) & hour(H) & H >= 9 & H < 18 & colleagues_present.
+
+So the office alone is not work: the hour and the audience are part of it. `circumstance(home)`
+has two clauses -- at home, or still at the office after hours with nobody left -- because that
+is one situation reached two ways, and it deserves one mask. A `circumstance(default)` clause
+catches anything unrecognised, which keeps the query total and makes an unmodelled situation
+visible in the report instead of silently absorbed.
+
+The three situations above derive to work, home and conference, so results are directly
+comparable with the earlier runs: every committed number is reproduced byte for byte.
 
 ## Compatibility measures
 

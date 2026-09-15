@@ -20,9 +20,9 @@ episode(0).
         !life_cycle.
 
 +!life_cycle
-    :   episode(E) & max_episodes(M) & E < M & circumstances(Cs)
+    :   episode(E) & max_episodes(M) & E < M & situations(Ss)
     <-  !announce(E);
-        !visit_all(Cs);
+        !visit_all(Ss);
         vesna.via.end_episode;
         E1 = E + 1;
         -+episode(E1);
@@ -38,13 +38,34 @@ episode(0).
 +!close_down : close_delay(D) & D > 0 <- .wait(D); .stopMAS.
 +!close_down <- .stopMAS.
 
+// Each element of situations/1 is a set of facts about the world, not the name of a circumstance.
+// Alice takes on the facts and asks what they add up to; the rules in mask_rules.asl answer.
 +!visit_all([]).
-+!visit_all([C|Rest])
-    <-  -+circumstance(C);
++!visit_all([S|Rest])
+    <-  !enter(S);
+        ?circumstance(C);
         !wear_mask;
         !say("-- now in ", C, " --");
         !work_through(C);
         !visit_all(Rest).
+
+// Move into a situation: forget the previous one, then believe this one.
++!enter(Facts)
+    <-  !clear_context;
+        !believe_all(Facts).
+
+// The context vocabulary, listed once. Anything mask_rules.asl reads must be cleared here.
++!clear_context
+    <-  .abolish(at(_));
+        .abolish(hour(_));
+        .abolish(colleagues_present);
+        .abolish(session_running);
+        .abolish(on_break).
+
++!believe_all([]).
++!believe_all([F|Rest])
+    <-  +F;
+        !believe_all(Rest).
 
 // Same two steps as the social agent: ask which masks fit, wear the most specific.
 +!wear_mask

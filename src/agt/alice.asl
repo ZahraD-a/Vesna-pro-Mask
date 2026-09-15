@@ -17,9 +17,9 @@ next_id(0).
         !life_cycle.
 
 +!life_cycle
-    :   episode(E) & max_episodes(M) & E < M & circumstances(Cs)
+    :   episode(E) & max_episodes(M) & E < M & situations(Ss)
     <-  !announce(E);
-        !visit_all(Cs);
+        !visit_all(Ss);
         .wait(60);                  // let the last replies land
         vesna.via.end_episode;      // fold regret into the masks, log, reset
         E1 = E + 1;
@@ -41,13 +41,37 @@ next_id(0).
         .stopMAS.
 +!close_down <- .stopMAS.
 
+// One pass through the day. Each element of situations/1 is a set of facts about the
+// world, not the name of a circumstance: Alice takes on the facts, then asks which
+// circumstance they add up to. She is never told where she is.
 +!visit_all([]).
-+!visit_all([C|Rest])
-    <-  -+circumstance(C);
++!visit_all([S|Rest])
+    <-  !enter(S);
+        ?circumstance(C);
         !wear_mask(C);
         !say("-- now in ", C, " --");
         !meet_everyone;
         !visit_all(Rest).
+
+// Move into a situation: forget the previous one, then believe this one. The old facts
+// have to go first, or yesterday's colleagues would still be in the room tonight.
++!enter(Facts)
+    <-  !clear_context;
+        !believe_all(Facts).
+
+// The context vocabulary, listed once. Anything the rules in mask_rules.asl read must be
+// cleared here, otherwise a circumstance could be derived from a stale fact.
++!clear_context
+    <-  .abolish(at(_));
+        .abolish(hour(_));
+        .abolish(colleagues_present);
+        .abolish(session_running);
+        .abolish(on_break).
+
++!believe_all([]).
++!believe_all([F|Rest])
+    <-  +F;
+        !believe_all(Rest).
 
 // Ask which masks fit, then pick one: wearable/1 can return several, .nth(0) takes
 // the most specific. wear_mask only passes the chosen name to the learner.

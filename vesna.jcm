@@ -26,7 +26,7 @@ mas vesna {
         use_masks:           true
         mask_delta:          0.5
         mask_learning_rate:  0.08
-        beliefs:             circumstances([work, home, conference]),
+        beliefs:             situations([[at(office),hour(10),colleagues_present], [at(home),hour(20)], [at(venue),hour(14),session_running]]),
                              rounds_per_partner(3),
                              max_episodes(120),
                              dialogue_episodes(2),
