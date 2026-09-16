@@ -68,7 +68,7 @@ public final class RewardMachine {
         return (acc == null || acc[1] == 0.0) ? 0.0 : acc[0] / acc[1];
     }
 
-    /** A personality trait runs 0..1 and a plan trait -1..1, so the widest gap is 2. */
+    /** A personality trait and a plan trait both run -1..1, so the widest gap is 2. */
     private static final double TRAIT_SPAN = 2.0;
 
     public static double inauthenticity(String style, Map<String, Double> corePersonality) {

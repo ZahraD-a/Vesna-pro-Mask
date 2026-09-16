@@ -88,8 +88,8 @@ public final class PlanCatalog {
         // a = -0.90, active coldness.
         //
         // A plan is scored by multiplying the agent's traits by the plan's and summing, so a
-        // negative annotation can make the total negative -- warm Alice (a = 0.75) scores ignore at
-        // -1.39. Negative-scoring plans are never picked, so she cannot ignore anyone until a mask
+        // negative annotation can make the total negative -- warm Alice (a = 0.50) scores ignore at
+        // -0.58. Negative-scoring plans are never picked, so she cannot ignore anyone until a mask
         // lowers her agreeableness. With all-positive numbers no plan was ever out of reach.
         style(SOCIAL, "drop_everything",  0.20, -0.50,  0.40,  0.90,  0.10, 1.00);
         style(SOCIAL, "help_after_task", -0.10,  0.80,  0.00,  0.40, -0.20, 0.50);

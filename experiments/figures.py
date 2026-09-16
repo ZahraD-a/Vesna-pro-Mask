@@ -5,6 +5,9 @@
   fig_transfer             same mask, three partners, overlapping behaviour
   fig_seed_variance        8-seed means with standard error
   fig_identity_vs_adaptation  core vs presented, a learner against a fixed agent
+  fig_pirandellian         paper: core vs presented per circumstance, signed scale
+  fig_identity             paper: the core as logged at fixed episodes of one run
+  fig_bob_baseline         paper: Bob's fixed personality
 
 Usage: python experiments/figures.py [out_dir]
 """
@@ -177,13 +180,15 @@ def _jcm_core(agent, path="vesna.jcm"):
     return out if len(out) == len(TRAITS) else None
 
 
-def _seed_masks(lo=1, hi=10):
-    """effective[circumstance][trait] -> one value per seed, and the core, identical in all."""
+def _seed_masks(lo=1, hi=10, paths=None):
+    """effective[circumstance][trait] -> one value per run, and the core, identical in all.
+    Reads the seed sweep unless paths names the learned_masks.csv files to use instead."""
     eff = defaultdict(lambda: defaultdict(list))
     core = {}
     seeds = []
-    for s in range(lo, hi + 1):
-        path = "experiments/_sweep/masks_seed%d.csv" % s
+    if paths is None:
+        paths = ["experiments/_sweep/masks_seed%d.csv" % s for s in range(lo, hi + 1)]
+    for s, path in enumerate(paths, 1):
         if not os.path.exists(path):
             continue
         seeds.append(s)
@@ -297,6 +302,153 @@ def fig_identity_vs_adaptation(delta=0.5):
     save(fig, "fig_identity_vs_adaptation")
 
 
+# ----------------------------------------------------------------- paper figures, section 4
+# Traits are stored on the paper's signed [-1,+1] scale, so these three plot them as read.
+
+P_CORE, P_SHOWN, P_BOB = "#0F766E", "#EA580C", "#475569"
+P_PANEL, P_ERR = "#F1F5F9", "#334155"
+SIGNED = [-1, -0.5, 0, 0.5, 1]
+
+
+def _paper_axes(ax):
+    ax.set_facecolor(P_PANEL)
+    for s in ("top", "right"):
+        ax.spines[s].set_visible(False)
+    for s in ("left", "bottom"):
+        ax.spines[s].set_color("#94A3B8")
+    ax.grid(axis="y", color="white", lw=1.2)
+    ax.set_axisbelow(True)
+    ax.axhline(0, color="#1E293B", lw=0.9, zorder=2)
+    ax.set_ylim(-1.08, 1.08)
+    ax.set_yticks(SIGNED)
+    ax.set_xticks(np.arange(len(TRAITS)))
+    ax.set_xticklabels([t.upper() for t in TRAITS], fontweight="bold")
+    ax.tick_params(length=0)
+
+
+def _zero_stubs(ax, xs, vals, width, **kw):
+    """A bar of value 0 has no height and reads as missing data; mark it on the baseline."""
+    for xi, v in zip(xs, vals):
+        if abs(v) < 0.01:
+            ax.plot([xi - width / 2, xi + width / 2], [0, 0], lw=3.5, solid_capstyle="butt",
+                    zorder=4, **kw)
+
+
+def _save_paper(fig, name):
+    os.makedirs(OUT, exist_ok=True)
+    fig.savefig(os.path.join(OUT, name + ".pdf"), bbox_inches="tight")
+    fig.savefig(os.path.join(OUT, name + ".png"), dpi=200, bbox_inches="tight")
+    plt.close(fig)
+    print("  wrote %s/%s.pdf and .png" % (OUT, name))
+
+
+def fig_paper_pirandellian(paths=None, baseline=None):
+    """Alice's core against what she presents, one panel per circumstance. Presented values are
+    the mean over the runs read, with standard error; the core is fixed, so it has none.
+
+    baseline names the learned_masks.csv of a run with mask_delta 0: the same agent with the mask
+    unable to move, i.e. plain Pro-AgentSpeak(L). It is drawn first, as the reference the three
+    masked panels are read against. Its presented personality is read from that run, not assumed."""
+    core, eff, seeds = _seed_masks(paths=paths)
+    if not seeds:
+        print("  skipped fig_pirandellian (no sweep data)")
+        return
+
+    panels = []
+    if baseline is not None and os.path.exists(baseline):
+        _, beff, _ = _seed_masks(paths=[baseline])
+        # With no mask every circumstance presents the same personality. Check rather than assume.
+        flat = all(abs(beff[c][t][0] - beff[CIRCS[0]][t][0]) < 1e-9 for c in CIRCS for t in TRAITS)
+        if not flat:
+            print("  WARNING: baseline presents differently across circumstances")
+        panels.append(("Alice without mask\n(Pro-AgentSpeak(L), any circumstance)",
+                       [_mean_se(beff[CIRCS[0]][t]) for t in TRAITS], 1))
+    for c in CIRCS:
+        panels.append(("Alice with mask\nat " + c.capitalize(),
+                       [_mean_se(eff[c][t]) for t in TRAITS], len(seeds)))
+
+    x = np.arange(len(TRAITS))
+    w = 0.38
+    # A narrow empty column separates the reference panel from the three masked ones.
+    ratios = [1, 0.12] + [1] * len(CIRCS) if baseline else [1] * len(CIRCS)
+    fig, axs = plt.subplots(1, len(ratios), figsize=(7.2 if baseline else 7, 2.9), sharey=True,
+                            gridspec_kw=dict(width_ratios=ratios))
+    if baseline:
+        axs[1].set_visible(False)
+        axs = [axs[0]] + list(axs[2:])
+
+    cor = [core[t] for t in TRAITS]
+    print("  Pirandellian, mean +/- se over %d run(s):" % len(seeds))
+    for ax, (title, stats, n) in zip(axs, panels):
+        mus = [m for m, _ in stats]
+        ses = [e for _, e in stats]
+        ax.bar(x - w / 2 - 0.01, cor, w, color=P_CORE, zorder=3,
+               label="Core (immutable identity)")
+        _zero_stubs(ax, x - w / 2 - 0.01, cor, w, color=P_CORE)
+        # One run has no spread to show, so draw no error bars rather than empty ones.
+        err = dict(yerr=ses, capsize=1.8, error_kw=dict(lw=0.8, ecolor=P_ERR, capthick=0.8)) if n > 1 else {}
+        ax.bar(x + w / 2 + 0.01, mus, w, color=P_SHOWN, zorder=3,
+               label="Presented personality (core + worn mask)", **err)
+        _zero_stubs(ax, x + w / 2 + 0.01, mus, w, color=P_SHOWN)
+        _paper_axes(ax)
+        ax.tick_params(labelsize=8)
+        ax.set_title(title, fontsize=8.5)
+        print("    %-26s" % title.replace("\n", " ")[:26] + "  ".join(
+            "%s %+.2f(%+.2f)" % (t.upper(), m, k) for t, m, k in zip(TRAITS, mus, cor)))
+    axs[0].set_ylabel("trait value", fontsize=9)
+    h, l = axs[-1].get_legend_handles_labels()
+    fig.legend(h, l, loc="upper center", bbox_to_anchor=(0.5, 1.02), ncol=2, frameon=False,
+               fontsize=8.5)
+    fig.tight_layout(rect=[0, 0, 1, 0.9])
+    _save_paper(fig, "fig_pirandellian")
+
+
+def fig_paper_identity(path=LATEST + "/core_samples.csv"):
+    """Alice's core as logged at fixed episodes during one run. Every sample is a real read of
+    the core the learner holds, not a copy of the configured value."""
+    if not os.path.exists(path):
+        print("  skipped fig_identity (no %s; rerun the MAS)" % path)
+        return
+    samples = rows(path)
+    x = np.arange(len(TRAITS))
+    n = len(samples)
+    w = 0.8 / n
+    alphas = np.linspace(0.4, 1.0, n)
+    last = int(samples[-1]["episode"])
+    fig, ax = plt.subplots(figsize=(7, 3.0))
+    for i, s in enumerate(samples):
+        ep = int(s["episode"])
+        name = "episode %d" % ep + (" (start)" if ep == 0 else " (end)" if ep == last else "")
+        v = [float(s[t]) for t in TRAITS]
+        ax.bar(x - 0.4 + w * (i + 0.5), v, w * 0.92, color=P_CORE, alpha=alphas[i],
+               zorder=3, label=name)
+        _zero_stubs(ax, x - 0.4 + w * (i + 0.5), v, w * 0.92, color=P_CORE, alpha=alphas[i])
+    _paper_axes(ax)
+    ax.set_ylabel("trait value", fontsize=9)
+    ax.set_title("Alice's core sampled across the run — identity does not move", fontsize=10)
+    ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.1), ncol=n, frameon=False, fontsize=8)
+    spread = max(max(float(s[t]) for s in samples) - min(float(s[t]) for s in samples)
+                 for t in TRAITS)
+    print("  identity: %d samples, largest change in any trait %.5f" % (n, spread))
+    fig.tight_layout()
+    _save_paper(fig, "fig_identity")
+
+
+def fig_paper_bob_baseline():
+    """Bob's configured personality. He wears no mask, so this is what he presents everywhere."""
+    bob = _jcm_core("bob")
+    if bob is None:
+        print("  skipped fig_bob_baseline (no bob temper in vesna.jcm)")
+        return
+    fig, ax = plt.subplots(figsize=(7, 2.8))
+    ax.bar(np.arange(len(TRAITS)), [bob[t] for t in TRAITS], 0.6, color=P_BOB, zorder=3)
+    _paper_axes(ax)
+    ax.set_ylabel("trait value", fontsize=9)
+    ax.set_title("Bob — fixed Pro-AgentSpeak(L) baseline", fontsize=10)
+    fig.tight_layout()
+    _save_paper(fig, "fig_bob_baseline")
+
+
 if __name__ == "__main__":
     fig_pirandello()
     fig_mask_by_trait()
@@ -304,3 +456,7 @@ if __name__ == "__main__":
     fig_seed_variance()
     fig_two_scenarios()
     fig_identity_vs_adaptation()
+    fig_paper_pirandellian(["results/signed_scale/mask_delta_0.5/learned_masks.csv"],
+                           baseline="results/signed_scale/no_mask/learned_masks.csv")
+    fig_paper_identity()
+    fig_paper_bob_baseline()

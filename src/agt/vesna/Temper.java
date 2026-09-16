@@ -69,8 +69,8 @@ public class Temper {
                     mood.put( trait.getFunctor().toString(), value );
                     continue;
                 } else {
-                    if ( value < 0.0 || value > 1.0 )
-                        throw new IllegalArgumentException( "Trait value for personality must be between 0 and 1, found:" + trait );
+                    if ( value < -1.0 || value > 1.0 )
+                        throw new IllegalArgumentException( "Trait value for personality must be between -1 and 1, found:" + trait );
                     personality.put( trait.getFunctor().toString(), value );
                 }
             }
@@ -141,9 +141,8 @@ public class Temper {
      * nothing in the output looks broken. Both therefore route through combine(). Do not
      * reimplement the measure anywhere else.
      *
-     * Note the ranges are mixed: a personality trait is in [0,1] but a plan annotation is in
-     * [-1,1]. Under dot and cosine a plan opposed to the agent scores negative and is dropped by
-     * the caller's clamp; under l1 the per-trait term is 1 - |a-b| with |a-b| at most 2, which in
+     * Personality traits and plan annotations are both in [-1,1]. Under dot and cosine a plan
+     * opposed to the agent scores negative and is dropped by the caller's clamp; under l1 the per-trait term is 1 - |a-b| with |a-b| at most 2, which in
      * practice stays positive, so l1 excludes nothing. That difference is the point of comparing
      * the measures, not a defect in any of them.
      */
@@ -185,7 +184,7 @@ public class Temper {
             try {
                 double traitValue = ( double ) ( (NumberTerm ) trait.getTerm( 0 ) ).solve();
                 if ( traitValue < -1.0 || traitValue > 1.0 )
-                    throw new IllegalArgumentException("Trait value out of range, found: " + trait + ". The value should be inside [0, 1].");
+                    throw new IllegalArgumentException("Trait value out of range, found: " + trait + ". The value should be inside [-1, 1].");
                 if ( strategy == DecisionStrategy.RANDOM ) {
                     dot += traitTemper * traitValue;
                     l1  += Math.abs( traitTemper - traitValue );

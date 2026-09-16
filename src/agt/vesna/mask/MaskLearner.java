@@ -74,15 +74,17 @@ public final class MaskLearner {
             Files.createDirectories(OUT);
             for (String f : new String[] { "episode_log.csv", "mask_trajectory.csv", "report.txt",
                                            "learned_masks.csv", "reward_components.csv",
-                                           "style_shift.csv", "style_by_partner.csv",
+                                           "style_shift.csv", "style_by_partner.csv", "core_samples.csv",
                                            "plot_mask_trajectory.png", "plot_entropy.png",
                                            "plot_style_shift.png", "plot_partner_mix.png" })
                 Files.deleteIfExists(OUT.resolve(f));
             Files.writeString(OUT.resolve("episode_log.csv"),
                 "episode,interactions,total_reward,mean_reward,entropy_work,entropy_home,entropy_conference\n");
             Files.writeString(OUT.resolve("mask_trajectory.csv"), "episode,mask,o,c,e,a,n,norm\n");
+            Files.writeString(OUT.resolve("core_samples.csv"), "episode,o,c,e,a,n\n");
         } catch (IOException e) { System.err.println("[LOG] " + e.getMessage()); }
         logMasks();
+        logCore();
     }
 
     // ----------------------------------------------------------------- wearing a mask
@@ -98,13 +100,13 @@ public final class MaskLearner {
         temper.useEffective(effective());
     }
 
-    /** A_eff = clip(core + activeMask, 0, 1), keeping any non-OCEAN traits (mood) untouched. */
+    /** A_eff = clip(core + activeMask, -1, 1), keeping any non-OCEAN traits (mood) untouched. */
     private Map<String, Double> effective() {
         Map<String, Double> eff = new LinkedHashMap<>(core);
         for (String t : Mask.OCEAN) {
             if (!core.containsKey(t)) continue;
             double v = core.get(t) + activeMask.get(t);
-            eff.put(t, Math.max(0.0, Math.min(1.0, v)));
+            eff.put(t, Math.max(-1.0, Math.min(1.0, v)));
         }
         return eff;
     }
@@ -220,6 +222,7 @@ public final class MaskLearner {
 
         logEpisode();
         logMasks();
+        if (episode % CORE_SAMPLE_EVERY == 0) logCore();
         history.add(currentCounts);
         currentCounts = new LinkedHashMap<>();
         episodeReward = 0.0;
@@ -281,6 +284,16 @@ public final class MaskLearner {
         append("mask_trajectory.csv", sb.toString());
     }
 
+    // The core is read once and never written, so every row here should be identical. Logged
+    // anyway, so the claim is checked against the run and not only against the code.
+    private static final int CORE_SAMPLE_EVERY = 30;
+
+    private void logCore() {
+        StringBuilder sb = new StringBuilder().append(episode);
+        for (String t : Mask.OCEAN) sb.append(String.format(Locale.ROOT, ",%.5f", core.getOrDefault(t, 0.0)));
+        append("core_samples.csv", sb.append("\n").toString());
+    }
+
     private void append(String file, String text) {
         try { Files.writeString(OUT.resolve(file), text, StandardOpenOption.CREATE, StandardOpenOption.APPEND); }
         catch (IOException e) { System.err.println("[LOG] " + e.getMessage()); }
@@ -319,7 +332,7 @@ public final class MaskLearner {
             for (String t : Mask.OCEAN) {
                 double c0 = core.getOrDefault(t, 0.0), off = m.get(t);
                 mcsv.append(String.format(Locale.ROOT, "%s,%s,%s,%.4f,%.4f,%.4f%n",
-                    m.circumstance(), m.name(), t, c0, off, Math.max(0, Math.min(1, c0 + off))));
+                    m.circumstance(), m.name(), t, c0, off, Math.max(-1, Math.min(1, c0 + off))));
             }
         }
 
@@ -332,7 +345,7 @@ public final class MaskLearner {
             for (String t : Mask.OCEAN) {
                 if (Math.abs(m.get(t)) < 0.05) continue;
                 double c0 = core.getOrDefault(t, 0.0);
-                p(" %s %.2f->%.2f ", t.toUpperCase(), c0, Math.max(0, Math.min(1, c0 + m.get(t))));
+                p(" %s %.2f->%.2f ", t.toUpperCase(), c0, Math.max(-1, Math.min(1, c0 + m.get(t))));
             }
             p("%n                     strongest shift: %s %+.2f%n", big.toUpperCase(), best);
         }

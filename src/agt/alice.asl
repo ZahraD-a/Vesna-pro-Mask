@@ -117,7 +117,7 @@ next_id(0).
 // where -1 is the opposite of a trait rather than a small amount of it.
 //
 // Plans are scored by multiplying the agent traits by the plan traits and summing.
-// Alice is warm (a(0.75)), so ignore scores -1.39, and negative-scoring plans are
+// Alice is warm (a(0.50)), so ignore scores -0.58, and negative-scoring plans are
 // never picked: she cannot ignore anyone until a mask lowers her agreeableness.
 //
 // These numbers must match PlanCatalog.java, which validate() checks at startup.

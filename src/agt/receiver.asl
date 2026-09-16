@@ -61,19 +61,19 @@ tolerate(Style, Circ)  :- not improper(Style, Circ).
 // Where two replies are possible the agent's personality picks between them, so the
 // answer varies by partner and is not fixed.
 
-@react_accept[temper([o(0.65), c(0.50), e(0.75), a(0.90), n(0.35)])]
+@react_accept[temper([o(0.30), c(0.00), e(0.50), a(0.80), n(-0.30)])]
 +!react(Ag, I, Style, Circ)
     :   approve(Style, Circ)
     <-  .send(Ag, tell, outcome(I, accepted));
         !say(Style, " in ", Circ, "  ->  accepted").
 
-@react_tolerate[temper([o(0.50), c(0.75), e(0.45), a(0.50), n(0.50)])]
+@react_tolerate[temper([o(0.00), c(0.50), e(-0.10), a(0.00), n(0.00)])]
 +!react(Ag, I, Style, Circ)
     :   tolerate(Style, Circ)
     <-  .send(Ag, tell, outcome(I, tolerated));
         !say(Style, " in ", Circ, "  ->  tolerated").
 
-@react_reject[temper([o(0.30), c(0.50), e(0.20), a(0.15), n(0.80)])]
+@react_reject[temper([o(-0.40), c(0.00), e(-0.60), a(-0.70), n(0.60)])]
 +!react(Ag, I, Style, Circ)
     :   not approve(Style, Circ)
     <-  .send(Ag, tell, outcome(I, rejected));

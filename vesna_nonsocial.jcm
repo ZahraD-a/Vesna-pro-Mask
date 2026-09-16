@@ -14,7 +14,7 @@ mas vesna_nonsocial {
 
     agent alice: alice_nonsocial.asl {
         ag-class:            vesna.VesnaAgent
-        temper:              temper(o(0.55), c(0.35), e(0.50), a(0.75), n(0.30), stress(0.0)[mood], satisfaction(0.0)[mood])
+        temper:              temper(o(0.10), c(-0.30), e(0.00), a(0.50), n(-0.40), stress(0.0)[mood], satisfaction(0.0)[mood])
         strategy:            random
         seed:                1
         compat:              dot

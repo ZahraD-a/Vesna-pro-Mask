@@ -105,7 +105,7 @@ score against a distribution the agent is not playing.
 
 ### What was changed in the original
 
-`Temper.java` differs from upstream in exactly two places:
+`Temper.java` differs from upstream in exactly three places:
 
 1. **Added** `getPersonality()` / `useEffective()` -- the mask seam. Upstream writes
    `personality` only in its constructor; this is the one write path that did not exist.
@@ -113,13 +113,16 @@ score against a distribution the agent is not playing.
    interval scan could not represent a negative weight. Neither bug is reachable upstream
    -- both its configurations use `most_similar`, and its plan annotations are all
    non-negative -- so the method had never run.
+3. **Widened** the personality range check from `[0,1]` to `[-1,1]`, so personalities are
+   stored on the same signed scale as plan annotations.
 
 Everything else, including `OptionWrapper`, `IntentionWrapper` and `TemperSelectable`, is
 byte-identical to the original.
 
-Personalities stay in `[0,1]` and plan annotations in `[-1,1]`: the two ranges the original
-already validates. Using the signed half of the annotation range is what lets a style score
-*negative* against the core, so a plan opposed to who the agent is gets no probability at
+Personalities and plan annotations are both in `[-1,1]`, where 0 is neutral and -1 is the
+opposite of a trait. Every personality from the earlier `[0,1]` version was converted with
+`2v - 1`, so each agent is the same person on the new scale. Signed values are what let a
+style score *negative* against the core, so a plan opposed to who the agent is gets no probability at
 all until a mask brings it into reach.
 
 ## Scope and limitations

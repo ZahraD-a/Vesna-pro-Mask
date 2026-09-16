@@ -1,9 +1,8 @@
 // Four agents, all running the same class. The only thing that makes Alice
 // different is this file, where masks are switched on for her alone.
 //
-// Personalities use five traits from 0 to 1; plan annotations in the .asl files run
-// from -1 to 1. Both are ranges the original code already accepts. What is new is
-// only that the negative half of the plan range is used at all.
+// Personalities and plan annotations in the .asl files both use five traits from -1
+// to 1, where 0 is neutral and -1 is the opposite of a trait.
 //
 // Experiment settings are under beliefs: below, so changing an experiment means
 // editing this file rather than the agent.
@@ -19,7 +18,7 @@ mas vesna {
     // mask may shift a trait.
     agent alice: alice.asl {
         ag-class:            vesna.VesnaAgent
-        temper:              temper(o(0.55), c(0.35), e(0.50), a(0.75), n(0.30), stress(0.0)[mood], satisfaction(0.0)[mood], social_energy(0.0)[mood])
+        temper:              temper(o(0.10), c(-0.30), e(0.00), a(0.50), n(-0.40), stress(0.0)[mood], satisfaction(0.0)[mood], social_energy(0.0)[mood])
         strategy:            random
         seed:                1
         compat:              dot
@@ -40,7 +39,7 @@ mas vesna {
 
     agent bob: bob.asl {
         ag-class:  vesna.VesnaAgent
-        temper:    temper(o(0.30), c(0.85), e(0.25), a(0.30), n(0.40))
+        temper:    temper(o(-0.40), c(0.70), e(-0.50), a(-0.40), n(-0.20))
         strategy:  random
         seed:      1
         compat:    dot
@@ -48,7 +47,7 @@ mas vesna {
 
     agent carol: carol.asl {
         ag-class:  vesna.VesnaAgent
-        temper:    temper(o(0.55), c(0.45), e(0.75), a(0.85), n(0.25))
+        temper:    temper(o(0.10), c(-0.10), e(0.50), a(0.70), n(-0.50))
         strategy:  random
         seed:      1
         compat:    dot
@@ -56,7 +55,7 @@ mas vesna {
 
     agent dave: dave.asl {
         ag-class:  vesna.VesnaAgent
-        temper:    temper(o(0.85), c(0.25), e(0.80), a(0.55), n(0.35))
+        temper:    temper(o(0.70), c(-0.50), e(0.60), a(0.10), n(-0.30))
         strategy:  random
         seed:      1
         compat:    dot
