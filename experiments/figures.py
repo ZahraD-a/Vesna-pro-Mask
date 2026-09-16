@@ -1,13 +1,12 @@
-"""Summary figures, all from data already on disk. No new runs.
+"""Figures for the paper, all from data already on disk. No new runs.
 
-  fig_pirandello           one identity, three masks (radar)
-  fig_mask_by_trait        per-trait mask evolution, one panel per circumstance
-  fig_transfer             same mask, three partners, overlapping behaviour
-  fig_seed_variance        8-seed means with standard error
-  fig_identity_vs_adaptation  core vs presented, a learner against a fixed agent
-  fig_pirandellian         paper: core vs presented per circumstance, signed scale
-  fig_identity             paper: the core as logged at fixed episodes of one run
-  fig_bob_baseline         paper: Bob's fixed personality
+  fig_pirandellian                    core vs presented personality per circumstance, with a
+                                      no-mask reference panel (social scenario)
+  fig_pirandellian_social_vs_nonsocial  the same, one row per source of feedback
+  fig_transfer                        one mask per circumstance, three partners, same style mix
+
+Also defined, for the learning experiments as they are run: fig_paper_learning,
+fig_paper_learning_compare, fig_paper_learning_single, fig_paper_interference, fig_paper_delta.
 
 Usage: python experiments/figures.py [out_dir]
 """
@@ -40,60 +39,6 @@ def save(fig, name):
     print("  wrote %s/%s.pdf and .png" % (OUT, name))
 
 
-def fig_pirandello():
-    """learned_masks.csv is long format: one row per (circumstance, trait)."""
-    data = rows(os.path.join(LATEST, "learned_masks.csv"))
-    core = {}
-    eff = defaultdict(dict)
-    for r in data:
-        core[r["trait"]] = float(r["core"])
-        eff[r["circumstance"]][r["trait"]] = float(r["effective"])
-
-    ang = np.linspace(0, 2 * np.pi, len(TRAITS), endpoint=False).tolist()
-    ang += ang[:1]
-    fig, ax = plt.subplots(figsize=(7.5, 7.5), subplot_kw=dict(polar=True))
-
-    v = [core[t] for t in TRAITS]; v += v[:1]
-    ax.plot(ang, v, lw=3.2, color="black", label="core identity", zorder=5)
-    ax.fill(ang, v, alpha=0.08, color="black")
-
-    for c in CIRCS:
-        if c not in eff:
-            continue
-        v = [eff[c][t] for t in TRAITS]; v += v[:1]
-        ax.plot(ang, v, lw=2, color=COLS[c], label="at " + c)
-        ax.fill(ang, v, alpha=0.13, color=COLS[c])
-
-    ax.set_xticks(ang[:-1]); ax.set_xticklabels(LABELS, fontsize=10)
-    ax.set_ylim(0, 1); ax.set_yticks([0.25, 0.5, 0.75, 1.0])
-    ax.set_title("One identity, three masks\nthe core is fixed; each circumstance shifts what is shown",
-                 pad=26, fontsize=12)
-    ax.legend(loc="upper right", bbox_to_anchor=(1.32, 1.10), frameon=False)
-    save(fig, "fig_pirandello")
-
-
-def fig_mask_by_trait():
-    data = rows(os.path.join(LATEST, "mask_trajectory.csv"))
-    fig, axes = plt.subplots(1, len(CIRCS), figsize=(13.5, 4.2), sharey=True)
-    for ax, c in zip(axes, CIRCS):
-        sub = sorted([r for r in data if r["mask"] == "mask_" + c],
-                     key=lambda r: int(r["episode"]))
-        if not sub:
-            continue
-        ep = [int(r["episode"]) for r in sub]
-        for t, lab in zip(TRAITS, LABELS):
-            ax.plot(ep, [float(r[t]) for r in sub], lw=1.9, label=lab)
-        ax.axhline(0, color="0.55", ls="--", lw=0.9)
-        ax.set_title("mask_" + c); ax.set_xlabel("episode")
-        ax.grid(alpha=0.25)
-    axes[0].set_ylabel("mask offset per trait")
-    axes[-1].legend(loc="center left", bbox_to_anchor=(1.02, 0.5), frameon=False)
-    fig.suptitle("Every mask starts at zero. What it learns depends on the circumstance.",
-                 fontsize=12.5)
-    fig.tight_layout()
-    save(fig, "fig_mask_by_trait")
-
-
 def fig_transfer():
     data = rows(os.path.join(LATEST, "style_by_partner.csv"))
     partners = sorted({r["partner"] for r in data})
@@ -110,60 +55,6 @@ def fig_transfer():
     save(fig, "fig_transfer")
 
 
-def fig_seed_variance():
-    p = "results/exp0_seed_sweep/summary.csv"
-    if not os.path.exists(p):
-        print("  skipped fig_seed_variance (no sweep summary)"); return
-    data = rows(p)
-    fig, ax = plt.subplots(figsize=(6, 4))
-    mus, ses = [], []
-    for c in CIRCS:
-        v = [float(r["outcome"]) for r in data if r["circumstance"] == c]
-        m = sum(v) / len(v)
-        se = math.sqrt(sum((x - m) ** 2 for x in v) / (len(v) - 1)) / math.sqrt(len(v))
-        mus.append(m); ses.append(se)
-    ax.bar(CIRCS, mus, yerr=ses, capsize=5, color=[COLS[c] for c in CIRCS])
-    for i, (m, se) in enumerate(zip(mus, ses)):
-        ax.text(i, m - se - 0.04, "%.3f\n+/-%.3f" % (m, se), ha="center", fontsize=9)
-    ax.axhline(0, color="0.5", lw=0.8)
-    ax.set_ylabel("mean outcome")
-    ax.set_title("Eight seeds: the ordering work < home < conference holds in every one")
-    fig.tight_layout()
-    save(fig, "fig_seed_variance")
-
-
-
-def fig_two_scenarios():
-    """The same three circumstances, learned twice: once from partners, once from the environment."""
-    social = os.path.join(LATEST, "mask_trajectory.csv")
-    nonsoc = "results/nonsocial/latest/mask_trajectory.csv"
-    if not os.path.exists(nonsoc):
-        print("  skipped fig_two_scenarios (no non-social run)"); return
-    fig, axes = plt.subplots(2, len(CIRCS), figsize=(4.3 * len(CIRCS), 7.2), sharey=True, sharex=True)
-    for row, (path, label) in enumerate([(social, "social: outcomes from partners"),
-                                         (nonsoc, "non-social: outcomes from the environment")]):
-        data = rows(path)
-        for col, c in enumerate(CIRCS):
-            ax = axes[row][col]
-            sub = sorted([r for r in data if r["mask"] == "mask_" + c],
-                         key=lambda r: int(r["episode"]))
-            if not sub:
-                ax.set_visible(False); continue
-            ep = [int(r["episode"]) for r in sub]
-            for t, lab in zip(TRAITS, LABELS):
-                ax.plot(ep, [float(r[t]) for r in sub], lw=1.8, label=lab)
-            ax.axhline(0, color="0.55", ls="--", lw=0.9)
-            ax.grid(alpha=0.25)
-            if row == 0:
-                ax.set_title("mask_" + c, fontsize=12)
-            if row == 1:
-                ax.set_xlabel("episode")
-        axes[row][0].set_ylabel(label + "\n\nmask offset per trait", fontsize=9)
-    axes[0][-1].legend(loc="center left", bbox_to_anchor=(1.02, 0.5), frameon=False)
-    fig.suptitle("The same three circumstances, learned twice. Same code, same masks, "
-                 "different source of feedback.", fontsize=12.5)
-    fig.tight_layout()
-    save(fig, "fig_two_scenarios")
 def _jcm_core(agent, path="vesna.jcm"):
     """The five OCEAN values an agent is given in the .jcm. Needed for agents with no wardrobe:
     their presented personality is their core by definition, so nothing about them is ever logged."""
@@ -180,14 +71,12 @@ def _jcm_core(agent, path="vesna.jcm"):
     return out if len(out) == len(TRAITS) else None
 
 
-def _seed_masks(lo=1, hi=10, paths=None):
+def _seed_masks(paths):
     """effective[circumstance][trait] -> one value per run, and the core, identical in all.
-    Reads the seed sweep unless paths names the learned_masks.csv files to use instead."""
+    paths names the learned_masks.csv files to read."""
     eff = defaultdict(lambda: defaultdict(list))
     core = {}
     seeds = []
-    if paths is None:
-        paths = ["experiments/_sweep/masks_seed%d.csv" % s for s in range(lo, hi + 1)]
     for s, path in enumerate(paths, 1):
         if not os.path.exists(path):
             continue
@@ -207,103 +96,6 @@ def _mean_se(v):
     sd = math.sqrt(sum((x - m) ** 2 for x in v) / (len(v) - 1))
     return m, sd / math.sqrt(len(v))
 
-
-def fig_identity_vs_adaptation(delta=0.5):
-    """Core against presented personality, for a learner and for a fixed agent.
-
-    Two rows, one property, two mechanisms. Alice wears a learned mask, so what she presents
-    moves with the circumstance while her core does not. Bob has no wardrobe, so what he presents
-    is his core everywhere. Both keep their identity: Bob because he never adapts, Alice because
-    every mask she learns is bounded by delta.
-    """
-    core, eff, seeds = _seed_masks()
-    if not seeds:
-        print("  skipped fig_identity_vs_adaptation (no sweep data)")
-        return
-    bob = _jcm_core("bob")
-    if bob is None:
-        print("  skipped fig_identity_vs_adaptation (no bob temper in vesna.jcm)")
-        return
-
-    C_CORE, C_SHOWN = "#3b6ea5", "#b5372e"
-    SHORT = ["O", "C", "E", "A", "N"]
-    x = np.arange(len(TRAITS))
-    w = 0.36
-
-    fig, axes = plt.subplots(2, len(CIRCS), figsize=(4.5 * len(CIRCS), 7.6),
-                             sharey=True, sharex=True)
-
-    print("  Alice, presented personality, mean +/- se over %d seeds (core in brackets):" % len(seeds))
-    for col, c in enumerate(CIRCS):
-        ax = axes[0][col]
-        stats = [_mean_se(eff[c][t]) for t in TRAITS]
-        mus = [m for m, _ in stats]
-        ses = [e for _, e in stats]
-        cor = [core[t] for t in TRAITS]
-
-        # What delta permits. Every red bar has to land inside this band, whatever it learns:
-        # the bound of Corollary 3.11 drawn as a ceiling instead of asserted in the text.
-        lo = [max(0.0, v - delta) for v in cor]
-        hi = [min(1.0, v + delta) for v in cor]
-        ax.bar(x, [h - l for l, h in zip(lo, hi)], bottom=lo, width=0.94,
-               color="#dfe4ea", edgecolor="#9aa4b1", lw=0.7, alpha=0.55, zorder=0,
-               label=r"reachable within $\delta$" if col == 0 else None)
-
-        ax.bar(x - w / 2, cor, w, color=C_CORE, zorder=3,
-               label="core identity" if col == 0 else None)
-        ax.bar(x + w / 2, mus, w, yerr=ses, capsize=3, color=C_SHOWN, zorder=3,
-               error_kw=dict(lw=1.1, ecolor="0.25"),
-               label="presented (core + mask)" if col == 0 else None)
-
-        # A value at a bound draws as a bar of no height, so label every one. Bold marks the
-        # ones sitting exactly on the delta floor or on the [0,1] clip -- learning that wanted
-        # to go further and was stopped.
-        for xi, (m, e, l) in enumerate(zip(mus, ses, lo)):
-            at_bound = abs(m - l) < 5e-4
-            ax.text(xi + w / 2, m + e + 0.035, "%.2f" % m, ha="center", fontsize=7.6,
-                    color="#7a1d16" if at_bound else "0.25",
-                    fontweight="bold" if at_bound else "normal", zorder=4)
-        ax.set_title("at " + c, fontsize=12)
-        ax.grid(axis="y", alpha=0.25)
-        ax.set_axisbelow(True)
-
-        print("    %-11s" % c + "  ".join("%s %.3f+/-%.3f [%.2f]" % (t, m, e, k)
-                                          for t, m, e, k in zip(SHORT, mus, ses, cor)))
-
-    print("  Bob, fixed: presented == core in every circumstance, and in every seed:")
-    print("    " + "  ".join("%s %.2f" % (sh, bob[t]) for sh, t in zip(SHORT, TRAITS)))
-
-    for col, c in enumerate(CIRCS):
-        ax = axes[1][col]
-        v = [bob[t] for t in TRAITS]
-        ax.bar(x - w / 2, v, w, color=C_CORE, zorder=3)
-        ax.bar(x + w / 2, v, w, color=C_SHOWN, zorder=3)
-        ax.grid(axis="y", alpha=0.25)
-        ax.set_axisbelow(True)
-        ax.set_xticks(x)
-        ax.set_xticklabels(SHORT)
-        ax.set_xlabel("O openness   C conscientiousness   E extraversion\n"
-                      "A agreeableness   N neuroticism", fontsize=7.5)
-
-    axes[0][0].set_ylabel("Alice\nlearns one mask per circumstance\n\ntrait value", fontsize=9.5)
-    axes[1][0].set_ylabel("Bob\nno wardrobe, fixed personality\n\ntrait value", fontsize=9.5)
-    axes[0][0].set_ylim(0, 1)
-
-    handles, labels = axes[0][0].get_legend_handles_labels()
-    order = [labels.index(l) for l in
-             ["core identity", "presented (core + mask)", r"reachable within $\delta$"]
-             if l in labels]
-    fig.legend([handles[i] for i in order], [labels[i] for i in order],
-               loc="upper center", bbox_to_anchor=(0.5, 0.945), ncol=3, frameon=False,
-               fontsize=10)
-    fig.suptitle("Identity is kept two ways: Bob never adapts, Alice adapts within a bound",
-                 fontsize=13, y=0.995)
-    fig.tight_layout(rect=[0, 0, 1, 0.9])
-    save(fig, "fig_identity_vs_adaptation")
-
-
-# ----------------------------------------------------------------- paper figures, section 4
-# Traits are stored on the paper's signed [-1,+1] scale, so these three plot them as read.
 
 P_CORE, P_SHOWN, P_BOB = "#0F766E", "#EA580C", "#475569"
 P_PANEL, P_ERR = "#F1F5F9", "#334155"
@@ -327,11 +119,12 @@ def _paper_axes(ax):
 
 
 def _zero_stubs(ax, xs, vals, width, **kw):
-    """A bar of value 0 has no height and reads as missing data; mark it on the baseline."""
+    """A bar of value 0 has no height and reads as missing data; label it 0 instead."""
+    color = kw.get("color", "0.2")
     for xi, v in zip(xs, vals):
-        if abs(v) < 0.01:
-            ax.plot([xi - width / 2, xi + width / 2], [0, 0], lw=3.5, solid_capstyle="butt",
-                    zorder=4, **kw)
+        if abs(v) < 0.005:
+            ax.text(xi, 0.04, "0", ha="center", va="bottom", fontsize=7, fontweight="bold",
+                    color=color, zorder=4)
 
 
 def _save_paper(fig, name):
@@ -342,21 +135,21 @@ def _save_paper(fig, name):
     print("  wrote %s/%s.pdf and .png" % (OUT, name))
 
 
-def fig_paper_pirandellian(paths=None, baseline=None):
+def fig_paper_pirandellian(paths, baseline=None):
     """Alice's core against what she presents, one panel per circumstance. Presented values are
     the mean over the runs read, with standard error; the core is fixed, so it has none.
 
     baseline names the learned_masks.csv of a run with mask_delta 0: the same agent with the mask
     unable to move, i.e. plain Pro-AgentSpeak(L). It is drawn first, as the reference the three
     masked panels are read against. Its presented personality is read from that run, not assumed."""
-    core, eff, seeds = _seed_masks(paths=paths)
+    core, eff, seeds = _seed_masks(paths)
     if not seeds:
         print("  skipped fig_pirandellian (no sweep data)")
         return
 
     panels = []
     if baseline is not None and os.path.exists(baseline):
-        _, beff, _ = _seed_masks(paths=[baseline])
+        _, beff, _ = _seed_masks([baseline])
         # With no mask every circumstance presents the same personality. Check rather than assume.
         flat = all(abs(beff[c][t][0] - beff[CIRCS[0]][t][0]) < 1e-9 for c in CIRCS for t in TRAITS)
         if not flat:
@@ -403,60 +196,394 @@ def fig_paper_pirandellian(paths=None, baseline=None):
     _save_paper(fig, "fig_pirandellian")
 
 
-def fig_paper_identity(path=LATEST + "/core_samples.csv"):
-    """Alice's core as logged at fixed episodes during one run. Every sample is a real read of
-    the core the learner holds, not a copy of the configured value."""
-    if not os.path.exists(path):
-        print("  skipped fig_identity (no %s; rerun the MAS)" % path)
+TRAIT_COLS = {"o": "#2a78d6", "c": "#eb6834", "e": "#1baf7a", "a": "#eda100", "n": "#e87ba4"}
+
+
+def _trajectories(run_dirs):
+    """mask[trait] -> array (runs x episodes). A mask is logged only once its circumstance has been
+    entered; before that it is the zero mask by construction, so missing episodes are filled with 0."""
+    per_run = []
+    for d in run_dirs:
+        data = rows(os.path.join(d, "mask_trajectory.csv"))
+        last_ep = max(int(r["episode"]) for r in data)
+        tr = {c: {t: np.zeros(last_ep + 1) for t in TRAITS} for c in CIRCS}
+        for r in data:
+            c = r["mask"].replace("mask_", "")
+            if c in tr:
+                for t in TRAITS:
+                    tr[c][t][int(r["episode"])] = float(r[t])
+        # The last logged row must be the mask the run reported at the end, or the plot is wrong.
+        final = os.path.join(d, "learned_masks.csv")
+        if os.path.exists(final):
+            for r in rows(final):
+                if r["circumstance"] in tr:
+                    got = tr[r["circumstance"]][r["trait"]][-1]
+                    assert abs(got - float(r["mask_offset"])) < 1e-3, (d, r, got)
+        per_run.append(tr)
+    n_ep = min(len(tr[CIRCS[0]][TRAITS[0]]) for tr in per_run)
+    return {c: {t: np.array([tr[c][t][:n_ep] for tr in per_run]) for t in TRAITS} for c in CIRCS}
+
+
+def _learning_panel(ax, tr, c, n, delta, label_prefix=""):
+    """One circumstance: mean mask per trait over n runs, standard-error band, end labels, +/-delta."""
+    ep = np.arange(tr[c][TRAITS[0]].shape[1])
+    ends = []
+    for t, lab in zip(TRAITS, LABELS):
+        m = tr[c][t].mean(axis=0)
+        if n > 1:
+            se = tr[c][t].std(axis=0, ddof=1) / math.sqrt(n)
+            ax.fill_between(ep, m - se, m + se, color=TRAIT_COLS[t], alpha=0.18, lw=0, zorder=2)
+        ax.plot(ep, m, color=TRAIT_COLS[t], lw=1.6, zorder=3, label=lab)
+        ends.append([m[-1], t])
+    # Direct labels at the right end. Traits that finish on the same value share one label, so a
+    # label never sits at a height no line reaches; distinct labels are then spread apart.
+    ends.sort()
+    groups = []
+    for y, t in ends:
+        if groups and abs(y - groups[-1][1]) < 0.03:
+            groups[-1][2].append(t.upper())
+        else:
+            groups.append([y, y, [t.upper()]])
+    for i in range(1, len(groups)):
+        groups[i][0] = max(groups[i][0], groups[i - 1][0] + 0.085)
+    for y, _, names in groups:
+        ax.text(ep[-1] + 3, y, " ".join(names), va="center", fontsize=7.5, fontweight="bold",
+                color="#1E293B")
+    for b in (-delta, delta):
+        ax.axhline(b, color="#64748B", lw=0.9, ls=(0, (4, 3)), zorder=1)
+    _style_axes(ax)
+    ax.axhline(0, color="#1E293B", lw=0.8, zorder=2)
+    ax.set_xlim(0, ep[-1] + 12)
+    ax.set_ylim(-delta - 0.12, delta + 0.12)
+    ax.set_yticks([-delta, -delta / 2, 0, delta / 2, delta])
+    print("  learning %s%-11s final " % (label_prefix, c) + "  ".join(
+        "%s %+.2f" % (t.upper(), tr[c][t].mean(axis=0)[-1]) for t in TRAITS))
+
+
+def _learning_legend(fig, ax, y=1.03):
+    h, l = ax.get_legend_handles_labels()
+    h.append(plt.Line2D([], [], color="#64748B", lw=0.9, ls=(0, (4, 3))))
+    l.append(r"mask bound $\pm\delta$")
+    fig.legend(h, l, loc="upper center", bbox_to_anchor=(0.5, y), ncol=6, frameon=False,
+               fontsize=7.5, handlelength=1.6, columnspacing=1.0)
+
+
+def fig_paper_learning(run_dirs, delta=0.5):
+    """The three masks as they are learned: one panel per circumstance, one line per trait, mean over
+    runs with a standard-error band. Every mask starts at zero and stays inside +/-delta."""
+    run_dirs = [d for d in run_dirs if os.path.exists(os.path.join(d, "mask_trajectory.csv"))]
+    if not run_dirs:
+        print("  skipped fig_learning (no runs)")
         return
-    samples = rows(path)
+    tr = _trajectories(run_dirs)
+    fig, axes = plt.subplots(1, len(CIRCS), figsize=(7.2, 2.7), sharey=True)
+    for ax, c in zip(axes, CIRCS):
+        _learning_panel(ax, tr, c, len(run_dirs), delta)
+        ax.set_title("mask at " + c.capitalize(), fontsize=9.5)
+        ax.set_xlabel("episode", fontsize=8.5)
+    axes[0].set_ylabel("mask offset", fontsize=9)
+    _learning_legend(fig, axes[0])
+    fig.tight_layout(rect=[0, 0, 1, 0.9])
+    _save_paper(fig, "fig_learning")
+
+
+def fig_paper_learning_compare(groups, delta=0.5, name="fig_learning_social_vs_nonsocial"):
+    """groups: [(row label, [run_dirs]), ...]. One row per source of feedback, same layout as
+    fig_learning, so the same circumstance can be read down a column."""
+    groups = [(lab, [d for d in ds if os.path.exists(os.path.join(d, "mask_trajectory.csv"))])
+              for lab, ds in groups]
+    if not all(ds for _, ds in groups):
+        print("  skipped %s (missing runs)" % name)
+        return
+    fig, axes = plt.subplots(len(groups), len(CIRCS), figsize=(7.2, 2.3 * len(groups) + 0.5),
+                             sharey=True, sharex=True)
+    for row, (lab, dirs) in enumerate(groups):
+        tr = _trajectories(dirs)
+        for col, c in enumerate(CIRCS):
+            ax = axes[row][col]
+            _learning_panel(ax, tr, c, len(dirs), delta, label_prefix=lab[:10] + " ")
+            if row == 0:
+                ax.set_title("mask at " + c.capitalize(), fontsize=9.5, pad=18)
+            if row == len(groups) - 1:
+                ax.set_xlabel("episode", fontsize=8.5)
+        axes[row][0].set_ylabel("mask offset", fontsize=8.5)
+        axes[row][0].text(0.0, 1.03, "%s (%d runs)" % (lab, len(dirs)), transform=axes[row][0].transAxes,
+                          fontsize=9, fontweight="bold", color="#1E293B", ha="left")
+    _learning_legend(fig, axes[0][0], y=1.02)
+    fig.tight_layout(rect=[0, 0, 1, 0.93])
+    _save_paper(fig, name)
+
+
+def fig_paper_pirandellian_compare(groups, name="fig_pirandellian_social_vs_nonsocial"):
+    """groups: [(row label, [learned_masks.csv of masked runs], learned_masks.csv of a no-mask run
+    or None), ...]. Core against presented personality, one row per source of feedback. The first
+    column is the same agent with mask_delta 0 -- plain Pro-AgentSpeak(L) -- read from that run,
+    not assumed. With no mask every circumstance presents the core, so one panel stands for all."""
     x = np.arange(len(TRAITS))
-    n = len(samples)
-    w = 0.8 / n
-    alphas = np.linspace(0.4, 1.0, n)
-    last = int(samples[-1]["episode"])
-    fig, ax = plt.subplots(figsize=(7, 3.0))
-    for i, s in enumerate(samples):
-        ep = int(s["episode"])
-        name = "episode %d" % ep + (" (start)" if ep == 0 else " (end)" if ep == last else "")
-        v = [float(s[t]) for t in TRAITS]
-        ax.bar(x - 0.4 + w * (i + 0.5), v, w * 0.92, color=P_CORE, alpha=alphas[i],
-               zorder=3, label=name)
-        _zero_stubs(ax, x - 0.4 + w * (i + 0.5), v, w * 0.92, color=P_CORE, alpha=alphas[i])
-    _paper_axes(ax)
-    ax.set_ylabel("trait value", fontsize=9)
-    ax.set_title("Alice's core sampled across the run — identity does not move", fontsize=10)
-    ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.1), ncol=n, frameon=False, fontsize=8)
-    spread = max(max(float(s[t]) for s in samples) - min(float(s[t]) for s in samples)
-                 for t in TRAITS)
-    print("  identity: %d samples, largest change in any trait %.5f" % (n, spread))
-    fig.tight_layout()
-    _save_paper(fig, "fig_identity")
+    w = 0.38
+    with_base = any(b for _, _, b in groups)
+    ncol = len(CIRCS) + (1 if with_base else 0)
+    fig, grid = plt.subplots(len(groups), ncol, figsize=(7.2, 2.5 * len(groups) + 0.5), sharey=True,
+                             )
+    cores = []
+
+    def bars(ax, cor, mus, ses, n):
+        ax.bar(x - w / 2 - 0.01, cor, w, color=P_CORE, zorder=3, label="Core (immutable identity)")
+        _zero_stubs(ax, x - w / 2 - 0.01, cor, w, color=P_CORE)
+        err = dict(yerr=ses, capsize=1.8, error_kw=dict(lw=0.8, ecolor=P_ERR, capthick=0.8)) if n > 1 else {}
+        ax.bar(x + w / 2 + 0.01, mus, w, color=P_SHOWN, zorder=3, label="Presented personality", **err)
+        _zero_stubs(ax, x + w / 2 + 0.01, mus, w, color=P_SHOWN)
+        _paper_axes(ax)
+        ax.tick_params(labelsize=8)
+
+    for row, (lab, paths, baseline) in enumerate(groups):
+        core, eff, seeds = _seed_masks(paths)
+        if not seeds:
+            print("  skipped %s (no runs for %s)" % (name, lab))
+            plt.close(fig)
+            return
+        cores.append([core[t] for t in TRAITS])
+        cor = [core[t] for t in TRAITS]
+        axes = list(grid[row])
+        if with_base:
+            ax = axes[0]
+            if baseline and os.path.exists(baseline):
+                bcore, beff, _ = _seed_masks([baseline])
+                flat = all(abs(beff[c][t][0] - beff[CIRCS[0]][t][0]) < 1e-9 for c in CIRCS for t in TRAITS)
+                same_core = all(abs(bcore[t] - core[t]) < 1e-9 for t in TRAITS)
+                if not (flat and same_core):
+                    print("  WARNING: baseline for %s is not flat or has another core" % lab)
+                bars(ax, cor, [beff[CIRCS[0]][t][0] for t in TRAITS], [0] * len(TRAITS), 1)
+                print("  compare %-10s %-11s " % (lab[:10], "no mask") + "  ".join(
+                    "%s %+.2f" % (t.upper(), beff[CIRCS[0]][t][0]) for t in TRAITS))
+            else:
+                ax.set_visible(False)
+            if row == 0:
+                ax.set_title("Alice without mask\n(any circumstance)", fontsize=9, pad=18)
+            axes = axes[1:]
+        for col, c in enumerate(CIRCS):
+            ax = axes[col]
+            stats = [_mean_se(eff[c][t]) for t in TRAITS]
+            mus = [m for m, _ in stats]
+            ses = [e for _, e in stats]
+            bars(ax, cor, mus, ses, len(seeds))
+            if row == 0:
+                ax.set_title("Alice with mask\nat " + c.capitalize(), fontsize=9, pad=18)
+            print("  compare %-10s %-11s " % (lab[:10], c) + "  ".join(
+                "%s %+.2f+/-%.2f" % (t.upper(), m, e) for t, m, e in zip(TRAITS, mus, ses)))
+        grid[row][0].set_ylabel("trait value", fontsize=8.5)
+        grid[row][0].text(0.0, 1.03, "%s (%d runs)" % (lab, len(seeds)), transform=grid[row][0].transAxes,
+                          fontsize=9, fontweight="bold", color="#1E293B", ha="left")
+    # The comparison only reads cleanly if both rows carry the same core; refuse to draw otherwise.
+    assert all(max(abs(a - b) for a, b in zip(cores[0], k)) < 1e-9 for k in cores), \
+        "rows have different cores: %s" % cores
+    h, l = grid[0][-1].get_legend_handles_labels()
+    fig.legend(h, l, loc="upper center", bbox_to_anchor=(0.5, 1.02), ncol=2, frameon=False, fontsize=8.5)
+    fig.tight_layout(rect=[0, 0, 1, 0.93])
+    if with_base:
+        # A thin rule between the baseline column and the masked ones.
+        b0, b1 = grid[-1][0].get_position(), grid[0][1].get_position()
+        xr = (b0.x1 + b1.x0) / 2
+        fig.add_artist(plt.Line2D([xr, xr], [b0.y0, grid[0][0].get_position().y1 + 0.02],
+                                  transform=fig.transFigure, color="#94A3B8", lw=0.8))
+    _save_paper(fig, name)
 
 
-def fig_paper_bob_baseline():
-    """Bob's configured personality. He wears no mask, so this is what he presents everywhere."""
-    bob = _jcm_core("bob")
-    if bob is None:
-        print("  skipped fig_bob_baseline (no bob temper in vesna.jcm)")
+def fig_paper_learning_single(run_dir, delta=0.5, name="fig_learning_seed1"):
+    """One run, every mask update. Top row: the worn mask after each update, per trait. Bottom row:
+    the signed step each update took, so pulls (up) and pushes (down) from regret are visible."""
+    path = os.path.join(run_dir, "mask_steps.csv")
+    if not os.path.exists(path):
+        print("  skipped %s (no mask_steps.csv)" % name)
         return
-    fig, ax = plt.subplots(figsize=(7, 2.8))
-    ax.bar(np.arange(len(TRAITS)), [bob[t] for t in TRAITS], 0.6, color=P_BOB, zorder=3)
-    _paper_axes(ax)
-    ax.set_ylabel("trait value", fontsize=9)
-    ax.set_title("Bob — fixed Pro-AgentSpeak(L) baseline", fontsize=10)
+    data = rows(path)
+    fig, axes = plt.subplots(2, len(CIRCS), figsize=(7.2, 4.6),
+                             gridspec_kw=dict(height_ratios=[1.4, 1]))
+    step_lim = 0.0
+    for col, c in enumerate(CIRCS):
+        sub = [r for r in data if r["circumstance"] == c]
+        n = np.arange(1, len(sub) + 1)
+        top, bot = axes[0][col], axes[1][col]
+        balance = {}
+        for t, lab in zip(TRAITS, LABELS):
+            top.plot(n, [float(r[t]) for r in sub], color=TRAIT_COLS[t], lw=1.2, label=lab)
+            steps = np.array([float(r["step_" + t]) for r in sub])
+            up, down = (steps > 1e-9).sum(), (steps < -1e-9).sum()
+            balance[t] = min(up, down) / max(1, up + down)
+            print("  single %-11s %s  updates up %4d  down %4d  zero %4d  final %+.3f"
+                  % (c, t.upper(), up, down, len(steps) - up - down, float(sub[-1][t])))
+        # The bottom row zooms into the first episodes of the trait whose updates are most evenly
+        # split between up and down: the one where pull and push from regret are both visible.
+        t = max(balance, key=balance.get)
+        window = min(len(sub), 135)
+        steps = np.array([float(r["step_" + t]) for r in sub[:window]]) * 1000
+        bot.vlines(np.arange(1, window + 1), 0, steps, color=TRAIT_COLS[t], lw=1.0)
+        step_lim = max(step_lim, np.abs(steps).max())
+        top.axvspan(1, window, color="#CBD5E1", alpha=0.45, lw=0, zorder=0)
+        bot.set_title("%s: step at each of updates 1-%d" % (dict(zip(TRAITS, LABELS))[t], window),
+                      fontsize=7)
+        for b in (-delta, delta):
+            top.axhline(b, color="#64748B", lw=0.9, ls=(0, (4, 3)))
+        for ax in (top, bot):
+            _style_axes(ax)
+            ax.axhline(0, color="#1E293B", lw=0.8, zorder=2)
+        top.set_ylim(-delta - 0.08, delta + 0.08)
+        top.set_title("mask at " + c.capitalize(), fontsize=9.5)
+        top.set_xlabel("update (about 9 per episode)", fontsize=7.5)
+        bot.set_xlabel("update", fontsize=7.5)
+        if col > 0:
+            top.set_yticklabels([])
+            bot.set_yticklabels([])
+    for col in range(len(CIRCS)):
+        axes[1][col].set_ylim(-step_lim * 1.1, step_lim * 1.1)
+    axes[0][0].set_ylabel("mask offset", fontsize=8.5)
+    axes[1][0].set_ylabel("step\n" + r"($\times 10^{-3}$)", fontsize=8.5)
+    h, l = axes[0][0].get_legend_handles_labels()
+    h.append(plt.Line2D([], [], color="#64748B", lw=0.9, ls=(0, (4, 3))))
+    l.append(r"mask bound $\pm\delta$")
+    fig.legend(h, l, loc="upper center", bbox_to_anchor=(0.5, 1.02), ncol=6, frameon=False,
+               fontsize=7.5, handlelength=1.6, columnspacing=1.0)
+    fig.tight_layout(rect=[0, 0, 1, 0.93])
+    _save_paper(fig, name)
+
+
+CIRC_COLS = {"work": "#4a3aa7", "home": "#008300", "conference": "#e34948"}
+CIRC_MARK = {"work": "o", "home": "s", "conference": "^"}
+
+
+def _style_axes(ax):
+    ax.set_facecolor(P_PANEL)
+    for s in ("top", "right"):
+        ax.spines[s].set_visible(False)
+    for s in ("left", "bottom"):
+        ax.spines[s].set_color("#94A3B8")
+    ax.grid(axis="y", color="white", lw=1.2)
+    ax.set_axisbelow(True)
+    ax.tick_params(length=0, labelsize=8)
+
+
+def _episode_outcomes(run_dir):
+    """circumstance -> array over episodes 1..N of the mean outcome in that episode (NaN if the
+    circumstance was not visited in that episode)."""
+    data = rows(os.path.join(run_dir, "episode_outcomes.csv"))
+    n = max(int(r["episode"]) for r in data)
+    out = {c: np.full(n, np.nan) for c in CIRCS}
+    for r in data:
+        if r["circumstance"] in out:
+            out[r["circumstance"]][int(r["episode"]) - 1] = float(r["outcome"])
+    return out
+
+
+def _smooth(v, k):
+    """Trailing moving average over k episodes, so a change is never drawn before it happens."""
+    s = np.array([np.nanmean(v[max(0, i - k + 1):i + 1]) for i in range(len(v))])
+    return s
+
+
+def fig_paper_interference(ours_dirs, shared_dirs, shift, window=5):
+    """Outcome per episode in each circumstance when the work norms change at episode `shift`.
+    Top row: one mask per circumstance. Bottom row: one mask shared by all circumstances."""
+    groups = [("one mask per circumstance", ours_dirs), ("one shared mask", shared_dirs)]
+    groups = [(n, [d for d in ds if os.path.exists(os.path.join(d, "episode_outcomes.csv"))])
+              for n, ds in groups]
+    if not all(ds for _, ds in groups):
+        print("  skipped fig_interference (missing runs)")
+        return
+    fig, axes = plt.subplots(2, len(CIRCS), figsize=(7.2, 4.2), sharex=True, sharey=True)
+    for row, (name, dirs) in enumerate(groups):
+        per_run = [_episode_outcomes(d) for d in dirs]
+        for col, c in enumerate(CIRCS):
+            ax = axes[row][col]
+            runs = np.array([_smooth(r[c], window) for r in per_run])
+            ep = np.arange(1, runs.shape[1] + 1)
+            m = runs.mean(axis=0)
+            if len(dirs) > 1:
+                se = runs.std(axis=0, ddof=1) / math.sqrt(len(dirs))
+                ax.fill_between(ep, m - se, m + se, color=CIRC_COLS[c], alpha=0.2, lw=0)
+            ax.plot(ep, m, color=CIRC_COLS[c], lw=1.6)
+            ax.axvline(shift + 0.5, color="#1E293B", lw=0.9, ls=(0, (4, 3)))
+            _style_axes(ax)
+            if row == 0:
+                ax.set_title(c.capitalize() + (" (norms change)" if c == "work" else ""), fontsize=9.5,
+                             pad=22)
+            if row == 1:
+                ax.set_xlabel("episode", fontsize=8.5)
+            before = np.nanmean([r[c][shift - 20:shift] for r in per_run])
+            after = np.nanmean([r[c][shift + 20:shift + 40] for r in per_run])
+            print("  interference %-26s %-11s outcome eps %d-%d %+.3f  eps %d-%d %+.3f"
+                  % (name, c, shift - 19, shift, before, shift + 21, shift + 40, after))
+        axes[row][0].set_ylabel("outcome\n(%d-episode mean)" % window, fontsize=8.5)
+        axes[row][0].text(0.0, 1.04, name, transform=axes[row][0].transAxes,
+                          fontsize=9, fontweight="bold", color="#1E293B", ha="left")
+    fig.suptitle("Work norms change after episode %d (dashed line); home and conference norms do not"
+                 % shift, fontsize=9.5, y=0.995)
+    fig.tight_layout(rect=[0, 0, 1, 0.97])
+    _save_paper(fig, "fig_interference")
+
+
+def _max_identity_distance(run_dir):
+    """max over episodes, masks and traits of |A_eff - A_core|, with A_eff clipped to [-1,1]."""
+    core = {r["trait"]: float(r["core"]) for r in rows(os.path.join(run_dir, "learned_masks.csv"))}
+    best = 0.0
+    for r in rows(os.path.join(run_dir, "mask_trajectory.csv")):
+        for t in TRAITS:
+            eff = max(-1.0, min(1.0, core[t] + float(r[t])))
+            best = max(best, abs(eff - core[t]))
+    return best
+
+
+def fig_paper_delta(sweep, last=24):
+    """sweep: list of (delta, [run_dirs]). (a) outcome per circumstance over the last `last`
+    episodes; (b) the largest distance the presented personality ever took from the core."""
+    sweep = [(dl, [d for d in ds if os.path.exists(os.path.join(d, "episode_outcomes.csv"))])
+             for dl, ds in sweep]
+    sweep = [(dl, ds) for dl, ds in sweep if ds]
+    if len(sweep) < 2:
+        print("  skipped fig_delta (need at least two delta values)")
+        return
+    x = np.arange(len(sweep))
+    fig, (ax_o, ax_d) = plt.subplots(1, 2, figsize=(7.2, 2.7))
+    for c in CIRCS:
+        mus, ses = [], []
+        for dl, ds in sweep:
+            v = [np.nanmean(_episode_outcomes(d)[c][-last:]) for d in ds]
+            mus.append(np.mean(v))
+            ses.append(np.std(v, ddof=1) / math.sqrt(len(v)) if len(v) > 1 else 0.0)
+        ax_o.errorbar(x, mus, yerr=ses, color=CIRC_COLS[c], marker=CIRC_MARK[c], ms=5, lw=1.5,
+                      capsize=2, label=c.capitalize())
+        ax_o.text(x[-1] + 0.12, mus[-1], c.capitalize(), va="center", fontsize=7.5,
+                  color="#1E293B")
+        print("  delta outcome %-11s " % c + "  ".join("d=%g %+.3f" % (dl, m) for (dl, _), m in zip(sweep, mus)))
+    dist = [[_max_identity_distance(d) for d in ds] for _, ds in sweep]
+    dm = [np.mean(v) for v in dist]
+    dse = [np.std(v, ddof=1) / math.sqrt(len(v)) if len(v) > 1 else 0.0 for v in dist]
+    ax_d.errorbar(x, dm, yerr=dse, color="#1E293B", marker="o", ms=5, lw=1.5, capsize=2)
+    ax_d.plot(x, [dl for dl, _ in sweep], color="#64748B", lw=0.9, ls=(0, (4, 3)),
+              label=r"$\delta$ (the bound)")
+    print("  delta distance " + "  ".join("d=%g %.3f" % (dl, m) for (dl, _), m in zip(sweep, dm)))
+    for ax, title, ylab in ((ax_o, "(a) outcome, last %d episodes" % last, "outcome"),
+                            (ax_d, "(b) largest distance from the core", r"max $|A_{eff}-A_{core}|$")):
+        _style_axes(ax)
+        ax.set_xticks(x)
+        ax.set_xticklabels(["%g" % dl for dl, _ in sweep])
+        ax.set_xlabel(r"mask bound $\delta$", fontsize=8.5)
+        ax.set_ylabel(ylab, fontsize=8.5)
+        ax.set_title(title, fontsize=9.5)
+        if 0.5 in [dl for dl, _ in sweep]:
+            ax.axvspan(x[[dl for dl, _ in sweep].index(0.5)] - 0.3, x[[dl for dl, _ in sweep].index(0.5)] + 0.3,
+                       color="#CBD5E1", alpha=0.5, lw=0, zorder=0)
+    ax_o.set_xlim(-0.4, x[-1] + 1.1)
+    ax_d.legend(loc="upper left", frameon=False, fontsize=7.5)
     fig.tight_layout()
-    _save_paper(fig, "fig_bob_baseline")
+    _save_paper(fig, "fig_delta")
 
 
 if __name__ == "__main__":
-    fig_pirandello()
-    fig_mask_by_trait()
+    RUNS = "results/exp2_masks/runs/"
+    social = [RUNS + "social_masked_seed%d/learned_masks.csv" % i for i in (1, 2, 3)]
+    nonsocial = [RUNS + "nonsocial_masked_seed%d/learned_masks.csv" % i for i in (1, 2, 3)]
     fig_transfer()
-    fig_seed_variance()
-    fig_two_scenarios()
-    fig_identity_vs_adaptation()
-    fig_paper_pirandellian(["results/signed_scale/mask_delta_0.5/learned_masks.csv"],
-                           baseline="results/signed_scale/no_mask/learned_masks.csv")
-    fig_paper_identity()
-    fig_paper_bob_baseline()
+    fig_paper_pirandellian(social, baseline=RUNS + "social_nomask_seed1/learned_masks.csv")
+    fig_paper_pirandellian_compare([
+        ("social: partners' replies", social, RUNS + "social_nomask_seed1/learned_masks.csv"),
+        ("non-social: task outcomes", nonsocial, RUNS + "nonsocial_nomask_seed1/learned_masks.csv")])

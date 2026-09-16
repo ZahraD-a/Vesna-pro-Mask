@@ -15,14 +15,15 @@ import java.util.*;
  * circumstance's mask -- and hands it over. Temper then chooses a plan exactly as it always did,
  * using this personality instead of the real one, and never knows a mask was involved.
  *
- * Only the masks change; the real personality never does. For each circumstance the learner keeps a
- * running score per style, called regret:
+ * Only the masks change; the real personality never does. After each outcome the learner scores every
+ * style that was available, and its regret is how much better or worse than expected it was:
  *
- *     regret[style] += what that style was worth - what the agent averaged
+ *     regret[style] = what that style was worth - what the agent expected to get
+ *     mask[trait]  += rate * sum over styles of regret[style] * style's annotation on trait
  *
- * Styles that end up with a positive score are the ones this circumstance rewards. The mask then
- * edges toward the personality that would have chosen those styles, but only so far: each trait is
- * capped, so a mask bends the agent without turning it into someone else.
+ * Styles with positive regret pull the worn mask towards their annotations, styles with negative
+ * regret push it away. Each trait is capped, so a mask bends the agent without turning it into
+ * someone else.
  */
 public final class MaskLearner {
 
@@ -38,7 +39,6 @@ public final class MaskLearner {
 
     private int episode = 0;
 
-    private final Map<String, double[]> regret = new LinkedHashMap<>();   // circumstance -> regret over styles
     private final Deque<Decision> pending = new ArrayDeque<>();
 
     private double episodeReward = 0.0;
@@ -75,6 +75,7 @@ public final class MaskLearner {
             for (String f : new String[] { "episode_log.csv", "mask_trajectory.csv", "report.txt",
                                            "learned_masks.csv", "reward_components.csv",
                                            "style_shift.csv", "style_by_partner.csv", "core_samples.csv",
+                                           "episode_outcomes.csv", "mask_steps.csv",
                                            "plot_mask_trajectory.png", "plot_entropy.png",
                                            "plot_style_shift.png", "plot_partner_mix.png" })
                 Files.deleteIfExists(OUT.resolve(f));
@@ -82,6 +83,12 @@ public final class MaskLearner {
                 "episode,interactions,total_reward,mean_reward,entropy_work,entropy_home,entropy_conference\n");
             Files.writeString(OUT.resolve("mask_trajectory.csv"), "episode,mask,o,c,e,a,n,norm\n");
             Files.writeString(OUT.resolve("core_samples.csv"), "episode,o,c,e,a,n\n");
+            Files.writeString(OUT.resolve("episode_outcomes.csv"), "episode,circumstance,interactions,outcome\n");
+            // One row per mask update: which plan was played, how it landed, its regret against the
+            // expectation, the mask after the step, and the step each trait actually took.
+            Files.writeString(OUT.resolve("mask_steps.csv"),
+                "update,episode,circumstance,mask,partner,style,outcome,chosen_regret,"
+                + "o,c,e,a,n,step_o,step_c,step_e,step_a,step_n\n");
         } catch (IOException e) { System.err.println("[LOG] " + e.getMessage()); }
         logMasks();
         logCore();
@@ -95,10 +102,31 @@ public final class MaskLearner {
  * the first time gets a new mask of its own rather than quietly falling back to the default.
  */
     public void wear(String maskName) {
-        String circ = maskName.startsWith("mask_") ? maskName.substring(5) : maskName;
-        activeMask = wardrobe.computeIfAbsent(circ, c -> new Mask("mask_" + c, c, maskDelta));
+        activeCircumstance = maskName.startsWith("mask_") ? maskName.substring(5) : maskName;
+        String key = sharedMask ? SHARED : activeCircumstance;
+        activeMask = wardrobe.computeIfAbsent(key, c -> new Mask("mask_" + c, c, maskDelta));
         temper.useEffective(effective());
     }
+
+    /**
+     * Ablation: one mask for every circumstance. The agent still knows where it is, and outcomes are
+     * still recorded per circumstance; only the mask is shared, so what is learned in one
+     * circumstance is carried into all the others.
+     */
+    public void shareOneMask() { sharedMask = true; }
+
+    /**
+     * Variant under test, off by default: weight each plan's regret by the probability the agent
+     * gives it. Plans it no longer picks then stop steering the mask on the strength of old
+     * estimates it has no way to refresh.
+     */
+    public void weightRegretByPolicy() { policyWeighted = true; }
+    private int updates = 0;
+    private boolean policyWeighted = false;
+
+    private static final String SHARED = "shared";
+    private boolean sharedMask = false;
+    private String activeCircumstance = "default";
 
     /** A_eff = clip(core + activeMask, -1, 1), keeping any non-OCEAN traits (mood) untouched. */
     private Map<String, Double> effective() {
@@ -111,7 +139,7 @@ public final class MaskLearner {
         return eff;
     }
 
-    public String activeCircumstance() { return activeMask.circumstance(); }
+    public String activeCircumstance() { return activeCircumstance; }
 
     // ----------------------------------------------------------------- the policy
 
@@ -136,14 +164,15 @@ public final class MaskLearner {
 
     private static final class Decision {
         final String circumstance, style;
+        final Mask mask;                 // the mask worn when the style was chosen
         final double[] policy;
         String partner;
-        Decision(String c, String s, double[] p) { circumstance = c; style = s; policy = p; }
+        Decision(String c, Mask m, String s, double[] p) { circumstance = c; mask = m; style = s; policy = p; }
     }
 
     /** The agent has just chosen a style for a partner (before the outcome is known). */
     public void recordChoice(String partner, String style) {
-        pending.addLast(new Decision(activeCircumstance(), style, policy()));
+        pending.addLast(new Decision(activeCircumstance(), activeMask, style, policy()));
         Decision d = pending.peekLast();
         d.partner = partner.toLowerCase();
     }
@@ -165,6 +194,10 @@ public final class MaskLearner {
         episodeReward += realised;
         episodeInteractions++;
 
+        double[] eo = episodeOutcome.computeIfAbsent(d.circumstance, k -> new double[2]);
+        eo[0] += RewardMachine.W_OUTCOME * score;
+        eo[1] += 1.0;
+
         double[] comp = components.computeIfAbsent(d.circumstance, k -> new double[4]);
         comp[0] += RewardMachine.W_OUTCOME * score;
         comp[1] -= RewardMachine.W_AUTH * RewardMachine.inauthenticity(chosen, core);
@@ -184,8 +217,27 @@ public final class MaskLearner {
         double v = 0.0;
         for (int a = 0; a < nStyles; a++) v += d.policy[a] * u[a];
 
-        double[] r = regret.computeIfAbsent(d.circumstance, k -> new double[nStyles]);
-        for (int a = 0; a < nStyles; a++) r[a] += u[a] - v;
+        // Regret rho(p) = u(p) - v, signed. Each trait moves by the regret-weighted sum of the plans'
+        // annotations: plans that would have done better pull the mask towards them, plans that
+        // would have done worse push it away. One bounded step, on the mask worn when the plan was
+        // chosen and on no other.
+        Mask worn = d.mask;
+        StringBuilder stepLog = new StringBuilder();
+        stepLog.append(String.format(Locale.ROOT, "%d,%d,%s,%s,%s,%s,%s,%.4f",
+            ++updates, episode + 1, d.circumstance, worn.name(), p, chosen, outcome, realised - v));
+        StringBuilder moved = new StringBuilder();
+        for (String t : Mask.OCEAN) {
+            double g = 0.0;
+            for (int a = 0; a < nStyles; a++)
+                g += (policyWeighted ? d.policy[a] : 1.0) * (u[a] - v) * PlanCatalog.trait(PlanCatalog.STYLES[a], t);
+            double before = worn.get(t);
+            worn.step(t, learningRate * g);
+            stepLog.append(String.format(Locale.ROOT, ",%.5f", worn.get(t)));
+            moved.append(String.format(Locale.ROOT, ",%.6f", worn.get(t) - before));
+        }
+        append("mask_steps.csv", stepLog.append(moved).append("\n").toString());
+        // Selection reads the mask as it is now, so a change to the one being worn applies at once.
+        if (worn == activeMask) temper.useEffective(effective());
 
         count(currentCounts, d.circumstance, chosen);
         count(byPartner, p, chosen);
@@ -198,30 +250,14 @@ public final class MaskLearner {
 
     // ----------------------------------------------------------------- episode boundary
 
-    /** Update every visited circumstance's mask from its accumulated regret, then log and reset. */
+    /** Masks are updated after each outcome; the episode boundary only logs and resets counters. */
     public void endEpisode() {
         if (!pending.isEmpty()) { pending.clear(); }
         episode++;
 
-        for (Mask mask : wardrobe.values()) {
-            double[] r = regret.get(mask.circumstance());
-            if (r == null) continue;
-            double total = 0.0;
-            for (double v : r) if (v > 0) total += v;
-            if (total <= 1e-9) continue;
-
-            for (String t : Mask.OCEAN) {
-                double persona = 0.0;
-                for (int a = 0; a < PlanCatalog.STYLES.length; a++) {
-                    if (r[a] <= 0) continue;
-                    persona += (r[a] / total) * PlanCatalog.trait(PlanCatalog.STYLES[a], t);
-                }
-                mask.moveToward(t, persona - core.getOrDefault(t, 0.0), learningRate);
-            }
-        }
-
         logEpisode();
         logMasks();
+        logEpisodeOutcomes();
         if (episode % CORE_SAMPLE_EVERY == 0) logCore();
         history.add(currentCounts);
         currentCounts = new LinkedHashMap<>();
@@ -282,6 +318,19 @@ public final class MaskLearner {
             sb.append(String.format(Locale.ROOT, ",%.5f%n", m.norm()));
         }
         append("mask_trajectory.csv", sb.toString());
+    }
+
+    // Mean outcome term per circumstance for the episode just ended, in the same units as the
+    // outcome column of reward_components.csv. This is what shows a change of norms over time.
+    private final Map<String, double[]> episodeOutcome = new LinkedHashMap<>();  // circ -> [sum, n]
+
+    private void logEpisodeOutcomes() {
+        StringBuilder sb = new StringBuilder();
+        for (Map.Entry<String, double[]> e : episodeOutcome.entrySet())
+            sb.append(String.format(Locale.ROOT, "%d,%s,%d,%.4f%n", episode, e.getKey(),
+                (int) e.getValue()[1], e.getValue()[0] / e.getValue()[1]));
+        append("episode_outcomes.csv", sb.toString());
+        episodeOutcome.clear();
     }
 
     // The core is read once and never written, so every row here should be identical. Logged

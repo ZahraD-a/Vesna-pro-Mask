@@ -48,8 +48,10 @@ public class VesnaAgent extends Agent {
             PlanCatalog.use(s.getUserParameter("domain"));  // absent -> social, the measured default
 
             double delta = parseDouble(s.getUserParameter("mask_delta"), 0.5);
-            double lr    = parseDouble(s.getUserParameter("mask_learning_rate"), 0.08);
+            double lr    = parseDouble(s.getUserParameter("mask_learning_rate"), 0.005);
             masks = new MaskLearner(temper, delta, lr, s.getUserParameter("results_dir"));
+            if ("true".equals(s.getUserParameter("shared_mask"))) masks.shareOneMask();  // ablation only
+            if ("policy".equals(s.getUserParameter("regret_weighting"))) masks.weightRegretByPolicy();
         }
     }
 

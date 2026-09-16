@@ -35,10 +35,21 @@ Figures redraw automatically after the social run. To rebuild them all by hand:
     python scripts/plot_results.py     # per-run plots for results/latest
     python experiments/figures.py      # summary figures into results/figures/
 
-To reproduce the measured experiments:
+To reproduce the runs behind the figures (`results/exp2_masks/README.md`):
 
-    bash experiments/seed_sweep.sh 1 8 && python experiments/analyze_sweep.py
-    bash experiments/exp1_ablation/run.sh 1 10 && python experiments/exp1_ablation/analyze.py
+    bash experiments/exp2_masks/run.sh social_masked 0.5 false 0 1 3 policy 0.005
+    bash experiments/exp2_masks/run.sh social_nomask 0.0 false 0 1 1 policy 0.005
+    bash experiments/exp2_masks/run_nonsocial.sh nonsocial_masked 0.5 1 3 policy 0.005
+    bash experiments/exp2_masks/run_nonsocial.sh nonsocial_nomask 0.0 1 1 policy 0.005
+
+`experiments/seed_sweep.sh` and `experiments/exp1_ablation/` are the earlier experiments,
+measured on the `[0,1]` personality scale and the episode-end update; their results are kept
+as they were and no longer match the current code.
+
+Three optional `.jcm` parameters exist for ablations: `shared_mask: true` gives every
+circumstance one mask; `regret_weighting: policy` weights each plan's regret by the probability
+the agent gave it (the setting used for the figures; omit it for the unweighted sum); and the
+belief `norm_shift_episode(N)` makes the partners judge work by their home norms after episode N.
 
 Runs are seeded. `./gradlew run` twice gives byte-identical output; change `seed:` in the
 `.jcm` to get a different run.

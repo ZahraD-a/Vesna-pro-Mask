@@ -42,11 +42,18 @@ improper(polite_decline,  conference).
 improper(drop_everything, conference).
 improper(delegate,        conference).
 
+// Which norms apply in a circumstance. Normally its own. In the norm-shift experiment
+// Alice's side announces norms_shifted partway through the run, and from then on the
+// office is judged the way home is; home and conference keep their norms.
+norms_for(work, home)  :- norms_shifted.
+norms_for(work, work)  :- not norms_shifted.
+norms_for(Circ, Circ)  :- Circ \== work.
+
 // Would this agent be glad to be helped this way, here? (its taste AND appropriate)
-approve(Style, Circ)   :- likes_style(Style) & not improper(Style, Circ).
+approve(Style, Circ)   :- norms_for(Circ, N) & likes_style(Style) & not improper(Style, N).
 
 // Would it at least be fine with it? (appropriate, even if not its taste)
-tolerate(Style, Circ)  :- not improper(Style, Circ).
+tolerate(Style, Circ)  :- norms_for(Circ, N) & not improper(Style, N).
 
 +offer(T, Style, Circ, I)[source(Ag)]
     <-  .abolish(offer(T, Style, Circ, I));

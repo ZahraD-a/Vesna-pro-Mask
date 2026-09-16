@@ -98,7 +98,7 @@ episode(0).
 @tidy_up[temper([o(-0.20), c(0.70), e(-0.40), a(0.30), n(-0.60)])]
 +!self_task(C) <- !attempt(C, tidy_up).
 
-@rest_deeply[temper([o(-0.10), c(-0.40), e(-0.70), a(0.00), n(-0.80)])]
+@rest_deeply[temper([o(-0.10), c(-0.40), e(-0.70), a(0.30), n(-0.20)])]
 +!self_task(C) <- !attempt(C, rest_deeply).
 
 @zone_out[temper([o(-0.60), c(-0.70), e(-0.20), a(-0.30), n(0.10)])]

@@ -18,13 +18,14 @@ mas vesna {
     // mask may shift a trait.
     agent alice: alice.asl {
         ag-class:            vesna.VesnaAgent
-        temper:              temper(o(0.10), c(-0.30), e(0.00), a(0.50), n(-0.40), stress(0.0)[mood], satisfaction(0.0)[mood], social_energy(0.0)[mood])
+        temper:              temper(o(0.40), c(-0.35), e(0.25), a(0.75), n(-0.60), stress(0.0)[mood], satisfaction(0.0)[mood], social_energy(0.0)[mood])
         strategy:            random
         seed:                1
         compat:              dot
         use_masks:           true
         mask_delta:          0.5
-        mask_learning_rate:  0.08
+        mask_learning_rate:  0.005
+        regret_weighting:    policy
         beliefs:             situations([[at(office),hour(10),colleagues_present], [at(home),hour(20)], [at(venue),hour(14),session_running]]),
                              rounds_per_partner(3),
                              max_episodes(120),

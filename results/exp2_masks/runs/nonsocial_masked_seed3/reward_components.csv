@@ -1,0 +1,4 @@
+circumstance,outcome,authenticity,cost,positive_pct,neutral_pct,negative_pct
+work,0.1898,-0.1536,-0.2062,0.4704,0.0000,0.5296
+home,0.3183,-0.1415,-0.0985,0.4963,0.0000,0.5037
+conference,1.1759,-0.0880,-0.1983,0.6741,0.0000,0.3259

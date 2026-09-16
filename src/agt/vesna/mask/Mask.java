@@ -5,7 +5,7 @@ import java.util.Map;
 
 /**
  * One mask: an adjustment to each of the five traits, belonging to one circumstance. The
- * personality shown is the real one plus this, kept within 0 and 1.
+ * personality shown is the real one plus this, kept within -1 and 1.
  *
  * Masks start at zero, so any later difference between circumstances was learned. They are the only
  * thing that changes; the real personality never does. Each adjustment is capped, so a mask bends
@@ -32,11 +32,9 @@ public final class Mask {
     public double clip()          { return clip; }
     public double get(String t)   { return delta.getOrDefault(t, 0.0); }
 
-    /** Move a delta toward a target by an exponential step, staying within [-clip, +clip]. */
-    public void moveToward(String t, double target, double rate) {
-        double bounded = Math.max(-clip, Math.min(clip, target));
-        double next = (1.0 - rate) * get(t) + rate * bounded;
-        delta.put(t, Math.max(-clip, Math.min(clip, next)));
+    /** Add a step to a delta and project it back into [-clip, +clip]. */
+    public void step(String t, double amount) {
+        delta.put(t, Math.max(-clip, Math.min(clip, get(t) + amount)));
     }
 
     /** L2 norm: how far this mask has moved from the identity. */
